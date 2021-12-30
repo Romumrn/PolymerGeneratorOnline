@@ -39,8 +39,6 @@ export default class GeneratorManager extends React.Component {
           "resname": toadd.moleculeToAdd,
           "seqid": 0,
           "id": this.id,
-          "cx": (100 + this.id * 20),
-          "cy": (150 + this.id * 50),
         };
 
         newMolecule.push(mol)
@@ -61,31 +59,41 @@ export default class GeneratorManager extends React.Component {
     this.setState({ nodes: this.state.nodes.concat(newMolecule) });
   }
 
+
   removenode = (id: string): void => {
-    let nodes = this.state.nodes;
-    let links = this.state.links;
-    console.log("id function" , id);
-    console.log(this.state);
-    let nodetoremove  = nodes.find(n => (n.id === id));
+    //remove node with a copy of state
+    var nodescopy = [...this.state.nodes];
+    var index  = nodescopy.findIndex(node => (node.id === id));
+    if (index !== -1) {
+      nodescopy.splice(index, 1);
+      this.setState({nodes: nodescopy});
+    }
+
+    //remove link with a copy of state
+
+    let linkscopy = [...this.state.links];
     //first remove links of this node
-    let indexlinktoremove =  links.findIndex(e => (e.source === nodetoremove) || (e.target === nodetoremove) );
+    let indexlinktoremove =  linkscopy.findIndex(e => (e.source.id === id) || (e.target.id === id) );
     //si index = -1, pas de lien trouvé
     if ( indexlinktoremove !== -1) {
         do {
-            links.splice(indexlinktoremove, 1);
-            indexlinktoremove = links.findIndex(e => (e.source === nodetoremove) || (e.target === nodetoremove) );
+            linkscopy.splice(indexlinktoremove, 1);
+            indexlinktoremove = linkscopy.findIndex(e => (e.source.id === id) || (e.target.id === id) );
         } while (indexlinktoremove !== -1); // tant qu'il reste des links
     }
-    // remove the node from nodes list
-    // Pourquoi setSate supprime tous lors du rendu ???
-    this.setState({ nodes: nodes.splice(nodetoremove.id , 1) });
-    console.log("index to remove" ,nodetoremove.id);
+    this.setState({links: linkscopy});
+
   }
 
-  rmlink = (node1: any , node2 : any): void => {
-    let links = this.state.links;
-    let indexlinktoremove = links.findIndex(e => (e.source === node1) || (e.target === node2) );
-    this.setState({ links : links.splice(indexlinktoremove, 1) });
+
+//// Coriger bug !!!!!!!!! 
+  removelink = (link : any): void => {
+    let linkscopy = [...this.state.links];
+    let indexlinktoremove = linkscopy.findIndex(e => (e.source === link.source) || (e.target === link.target) );
+    if (indexlinktoremove === -1){
+      indexlinktoremove = linkscopy.findIndex(e => (e.source === link.target) || (e.target === link.source) );
+    }
+    this.setState({ links : linkscopy.splice(indexlinktoremove, 1) });
   }
 
 
@@ -98,7 +106,7 @@ export default class GeneratorManager extends React.Component {
             <GeneratorMenu addnode={this.addnode} />
           </Grid>
           <Grid item xs={8}>
-            <PolymerViewer nodes={this.state.nodes} links={this.state.links} rmnode={this.removenode} rmlink={this.rmlink} />
+            <PolymerViewer nodes={this.state.nodes} links={this.state.links} rmnode={this.removenode} rmlink={this.removelink} />
           </Grid>
         </Grid>
 

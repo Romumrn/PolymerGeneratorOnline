@@ -5,8 +5,6 @@ type node = {
   resname: string,
   seqid: 0,
   id: number,
-  cx: number,
-  cy: number
 }
 
 type link = {
@@ -22,9 +20,8 @@ interface stateviewer {
 interface propsviewer {
   nodes: node[];
   links: link[];
-  rmnode: (arg0: any) => void,
-  rmlink: (id1: string, id2: string) => void
-
+  rmnode: (id: any) => void,
+  rmlink: (link :any) => void
 }
 
 function hashStringToColor(str: string) {
@@ -40,80 +37,140 @@ function hashStringToColor(str: string) {
 
 
 export default class GeneratorViewer extends React.Component<propsviewer, stateviewer> {
-  constructor(props: propsviewer) {
-    super(props);
-  }
-
-
   ref!: SVGSVGElement;
 
   //https://reactjs.org/docs/react-component.html#componentdidupdate
 
   componentDidMount() {
     // activate
-    this.buildGraph();
+    this.chart();
   }
 
   componentDidUpdate() {
-    this.buildGraph();
+    // remove old svg node
+    d3.selectAll("g").remove();
+    // show the new graph
+    this.chart();
   }
 
-  buildGraph = () => {
+  chart = () => {
     const taille = 800,
-      radius = 20,
+      radius = 10,
       rmnode = this.props.rmnode,
-      rmlink = this.props.rmlink ;
+      rmlink = this.props.rmlink;
 
-    const graph = d3.select(this.ref)
+    const context: any = d3.select(this.ref)
       .attr("style", "outline: thin solid grey;")
       .attr("width", taille)
       .attr("height", taille);
 
-    graph.selectAll('circle')
-      .data(this.props.nodes)
-      .join(
-        enter => enter.append('circle')
-          .attr("name", function (d) { return d.resname })
-          .attr("id", function (d) { return d.id })
-          .attr("cx", function (d) { return d.cx })
-          .attr("cy", function (d) { return d.cy })
-          .attr("r", radius)
-          .attr("class", "ctrlfalse")
-          .attr("fill", function (d) { return hashStringToColor(d.resname) })
-          .attr('stroke', "grey")
-          .attr("stroke-width", "2")
+    const simulation: any = d3.forceSimulation()
+      .force("link", d3.forceLink().distance(radius*2))
+      .force("charge", d3.forceManyBody())
+      .force("x", d3.forceX(taille/2).strength(0.02))
+      .force("y", d3.forceY(taille/2).strength(0.02))
 
-          .on('click', function (e, d) {
-            if (e.ctrlKey) {
-              d3.select(this)
-                .attr('stroke', "black")
-                .attr("class", "ctrltrue");
-            }
-            else {
-              //remove node from json
-              rmnode(d.id);
-            }
-
-          })
-      )
-
-    graph.selectAll('line')
+    var link = context.append("g")
+      .attr("class", "links")
+      .selectAll("line")
       .data(this.props.links)
-      .join("line")
+      .enter()
+      .append("line")
       .attr("stroke", "grey")
       .attr("stroke-width", 6)
       .attr("opacity", 0.5)
       .attr("stroke-linecap", "round")
-      .attr("x1", function (d) { return d.source.cx })
-      .attr("y1", function (d) { return d.source.cy })
-      .attr("x2", function (d) { return d.target.cx })
-      .attr("y2", function (d) { return d.target.cy })
-      .on("click", function (d) { rmlink(d.source, d.target)} );
+      .attr("source" , function (d : any) {return d.source.id})
+      .attr("target" , function (d : any) {return d.target.id})
+      .on("click", function (d : any) { rmlink( d ) });
+
+    const node = context.append("g")
+      .attr("class", "nodes")
+      .selectAll("circle")
+      .data(this.props.nodes)
+      .enter()
+      .append('circle')
+      .attr("r", radius)
+      .attr("fill", function (d: node) { return hashStringToColor(d.resname) })
+      .attr('stroke', "grey")
+      .attr("stroke-width", "2")
+      .call(d3.drag()
+        .on("start", dragstarted)
+        .on("drag", dragged)
+        .on("end", dragended))
+      .on('click', function (e :any, d : node) {
+          if (e.ctrlKey) {
+            // d3.select(this.)
+            //   .attr('stroke', "black")
+            //   .attr("class", "ctrltrue");
+          }
+          else {
+            //remove node from json
+            console.log(d.id);
+            rmnode(d.id);
+          }
+        });
+
+
+    node.append("title")
+      .text(function (d: node) {
+        let title = d.resname+" : "+d.id;
+        return title;
+      });
+
+    simulation.nodes(this.props.nodes).on("tick", ticked);
+    simulation.force("link").links(this.props.links);
+
+    function dragstarted(event: any, d: any) {
+      if (!event.active) {
+        simulation.alphaTarget(0.3).restart();
+      }
+      d.fx = d.x;
+      d.fy = d.y;
+    }
+
+    function dragged(event: any, d: any) {
+      d.fx = event.x;
+      d.fy = event.y;
+    }
+
+    function dragended(event: any, d: any) {
+      if (!event.active) {
+        simulation.alphaTarget(0);
+      }
+      d.fx = null;
+      d.fy = null;
+    }
+
+    function ticked() {
+      link
+        .attr("x1", function (d: any) {
+          return d.source.x;
+        })
+        .attr("y1", function (d: any) {
+          return d.source.y;
+        })
+        .attr("x2", function (d: any) {
+          return d.target.x;
+        })
+        .attr("y2", function (d: any) {
+          return d.target.y;
+        });
+
+      node
+        .attr("cx", function (d: any) {
+          return d.x;
+        })
+        .attr("cy", function (d: any) {
+          return d.y;
+        });
+    }
   }
 
   render() {
-    return (<div className="svg">
-      <svg className="container" ref={(ref: SVGSVGElement) => this.ref = ref} width='100' height='100'></svg>
+    return (
+    <div className="svg">
+      <svg className="container" ref={(ref: SVGSVGElement) => this.ref = ref}></svg>
     </div>);
   }
 }

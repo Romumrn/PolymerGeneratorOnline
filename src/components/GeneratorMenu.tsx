@@ -23,8 +23,8 @@ export default class GeneratorMenu extends React.Component<propsmenu ,formstate 
 
     // Set the state directly. Use props if necessary.
     this.state = {
-      forcefield: "martini3",
-      moleculeToAdd: "glucose",
+      forcefield: this.listff[0],
+      moleculeToAdd: this.listmol[0],
       numberToAdd: 1
     }
     }
