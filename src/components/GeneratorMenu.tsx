@@ -3,19 +3,21 @@ import Button from "@mui/material/Button";
 import TextField from "@mui/material/TextField";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
-import formstate from "./form"
 
 interface propsmenu {
   addnode : (arg0: resform) => void,
+  addlink : (arg1: any, arg2: any) => void
 }
 
-type resform = {
+interface resform {
   forcefield: string;
-  moleculeToAdd: string;
-  numberToAdd: number;
+  moleculeToAdd: string| null;
+  numberToAdd: number| null;
+  id1 : number | null ;
+  id2 : number | null; 
 }
 
-export default class GeneratorMenu extends React.Component<propsmenu ,formstate > {
+export default class GeneratorMenu extends React.Component<propsmenu ,resform > {
 
   constructor(props : propsmenu) {
     // Required step: always call the parent class' constructor
@@ -25,7 +27,9 @@ export default class GeneratorMenu extends React.Component<propsmenu ,formstate 
     this.state = {
       forcefield: this.listff[0],
       moleculeToAdd: this.listmol[0],
-      numberToAdd: 1
+      numberToAdd: 1,
+      id1 : null,
+      id2 : null,
     }
     }
   
@@ -108,11 +112,38 @@ export default class GeneratorMenu extends React.Component<propsmenu ,formstate 
           />
 
           <Button
-            id="add"
+            id="addmol"
             variant="contained"
             onClick={() => this.props.addnode(this.state)}>
             add
           </Button>
+
+          <p>Add a new link : </p>
+          
+          <TextField
+            label="id1"
+            type="number"
+            InputProps={{ inputProps: { min: 0, max: 100 } }}
+            value={this.state.id1}
+            onChange={v => this.setState({ id1: Number(v.target.value) })}
+            variant="outlined"
+          />
+          <TextField
+            label="id2"
+            type="number"
+            InputProps={{ inputProps: { min: 0, max: 100 } }}
+            value={this.state.id2}
+            onChange={v => this.setState({ id2: Number(v.target.value) })}
+            variant="outlined"
+          />
+
+          <Button
+            id="addlink"
+            variant="contained"
+            onClick={() => this.props.addlink(this.state.id1 , this.state.id2)}>
+            add link
+          </Button>
+
 
             <p> Explication : </p>
             <ul>

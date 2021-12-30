@@ -59,6 +59,14 @@ export default class GeneratorManager extends React.Component {
     this.setState({ nodes: this.state.nodes.concat(newMolecule) });
   }
 
+  addlink = (node1 : any , node2 : any): void => {
+    let newlinks = ({
+      "source": node1,
+      "target": node2
+    });
+    this.setState({ links: this.state.links.concat(newlinks) });
+  }
+
 
   removenode = (id: string): void => {
     //remove node with a copy of state
@@ -103,7 +111,7 @@ export default class GeneratorManager extends React.Component {
       <div>
         <Grid container spacing={2}>
           <Grid item xs={4}>
-            <GeneratorMenu addnode={this.addnode} />
+            <GeneratorMenu addnode={this.addnode} addlink={this.addlink} />
           </Grid>
           <Grid item xs={8}>
             <PolymerViewer nodes={this.state.nodes} links={this.state.links} rmnode={this.removenode} rmlink={this.removelink} />
