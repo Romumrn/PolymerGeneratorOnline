@@ -114,7 +114,7 @@ export default class GeneratorManager extends React.Component {
             <GeneratorMenu addnode={this.addnode} addlink={this.addlink} />
           </Grid>
           <Grid item xs={8}>
-            <PolymerViewer nodes={this.state.nodes} links={this.state.links} rmnode={this.removenode} rmlink={this.removelink} />
+            <PolymerViewer nodes={this.state.nodes} links={this.state.links} rmnode={this.removenode} rmlink={this.removelink} addlink={this.addlink}/>
           </Grid>
         </Grid>
 

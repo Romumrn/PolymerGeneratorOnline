@@ -21,7 +21,8 @@ interface propsviewer {
   nodes: node[];
   links: link[];
   rmnode: (id: any) => void,
-  rmlink: (link :any) => void
+  rmlink: (link: any) => void
+  addlink: (link1: node, link2:node) => void
 }
 
 function hashStringToColor(str: string) {
@@ -57,19 +58,23 @@ export default class GeneratorViewer extends React.Component<propsviewer, statev
     const taille = 800,
       radius = 10,
       rmnode = this.props.rmnode,
-      rmlink = this.props.rmlink;
+      rmlink = this.props.rmlink,
+      addlink = this.props.addlink;
 
+    // Define svg box
     const context: any = d3.select(this.ref)
       .attr("style", "outline: thin solid grey;")
       .attr("width", taille)
       .attr("height", taille);
 
+    // Define forcefield 
     const simulation: any = d3.forceSimulation()
-      .force("link", d3.forceLink().distance(radius*2))
+      .force("link", d3.forceLink().distance(radius * 2))
       .force("charge", d3.forceManyBody())
-      .force("x", d3.forceX(taille/2).strength(0.02))
-      .force("y", d3.forceY(taille/2).strength(0.02))
+      .force("x", d3.forceX(taille / 2).strength(0.02))
+      .force("y", d3.forceY(taille / 2).strength(0.02))
 
+    // Define link with enter and the props link
     var link = context.append("g")
       .attr("class", "links")
       .selectAll("line")
@@ -80,10 +85,11 @@ export default class GeneratorViewer extends React.Component<propsviewer, statev
       .attr("stroke-width", 6)
       .attr("opacity", 0.5)
       .attr("stroke-linecap", "round")
-      .attr("source" , function (d : any) {return d.source.id})
-      .attr("target" , function (d : any) {return d.target.id})
-      .on("click", function (d : any) { rmlink( d ) });
+      .attr("source", function (d: any) { return d.source.id })
+      .attr("target", function (d: any) { return d.target.id })
+      .on("click", function (d: any) { rmlink(d) });
 
+    // Define node with enter and props nodes
     const node = context.append("g")
       .attr("class", "nodes")
       .selectAll("circle")
@@ -98,32 +104,33 @@ export default class GeneratorViewer extends React.Component<propsviewer, statev
         .on("start", dragstarted)
         .on("drag", dragged)
         .on("end", dragended))
-      .on('click', function (e :any, d : node) {
-          if (e.ctrlKey) {
-            // d3.select(this.)
-            //   .attr('stroke', "black")
-            //   .attr("class", "ctrltrue");
-          }
-          else {
-            //remove node from json
-            console.log(d.id);
-            rmnode(d.id);
-          }
-        });
+      .on('click', function (e: any, d: node) {
+        if (e.ctrlKey) {
+          // d3.select(this.)
+          //   .attr('stroke', "black")
+          //   .attr("class", "ctrltrue");
+        }
+        else {
+          //remove node from json
+          console.log(d.id);
+          rmnode(d.id);
+        }
+      });
 
-
+    // Add a title to each node with his name and his id
     node.append("title")
       .text(function (d: node) {
-        let title = d.resname+" : "+d.id;
+        let title = d.resname + " : " + d.id;
         return title;
       });
+
 
     simulation.nodes(this.props.nodes).on("tick", ticked);
     simulation.force("link").links(this.props.links);
 
     function dragstarted(event: any, d: any) {
       if (!event.active) {
-        simulation.alphaTarget(0.3).restart();
+        simulation.alphaTarget(0);
       }
       d.fx = d.x;
       d.fy = d.y;
@@ -135,12 +142,39 @@ export default class GeneratorViewer extends React.Component<propsviewer, statev
     }
 
     function dragended(event: any, d: any) {
+      let contact;
       if (!event.active) {
-        simulation.alphaTarget(0);
+        simulation.alphaTarget(0).restart();
       }
       d.fx = null;
       d.fy = null;
+      contact = simulation.incontact(event.x, event.y,d.id);
+      if (contact !== null){
+        addlink( d, contact)
+      }
     }
+
+    // Add function to detect collision and create link
+    simulation.incontact = function (x: number, y: number, id: number) {
+      var nodes = simulation.nodes();
+      var i = 0,
+        n = nodes.length,
+        dx,
+        dy,
+        dist,
+        node;
+
+      for (i = 0; i < n; ++i) {
+        node = nodes[i];
+        dx = x - node.x;
+        dy = y - node.y;
+        dist = Math.sqrt( dx * dx + dy * dy);
+        if ( (dist < radius*2) && (node.id !== id)) {
+         return node;
+        }
+      }
+      return null;
+    };
 
     function ticked() {
       link
@@ -169,8 +203,8 @@ export default class GeneratorViewer extends React.Component<propsviewer, statev
 
   render() {
     return (
-    <div className="svg">
-      <svg className="container" ref={(ref: SVGSVGElement) => this.ref = ref}></svg>
-    </div>);
+      <div className="svg">
+        <svg className="container" ref={(ref: SVGSVGElement) => this.ref = ref}></svg>
+      </div>);
   }
 }
