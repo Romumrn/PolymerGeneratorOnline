@@ -27,8 +27,6 @@ export default class GeneratorManager extends React.Component {
         "resname": toadd.moleculeToAdd,
         "seqid": 0,
         "id": this.id,
-        "cx": 30 * this.id,
-        "cy": 40 * this.id,
       });
       this.id++;
     }
@@ -90,18 +88,17 @@ export default class GeneratorManager extends React.Component {
         } while (indexlinktoremove !== -1); // tant qu'il reste des links
     }
     this.setState({links: linkscopy});
-
   }
 
 
 //// Coriger bug !!!!!!!!! 
   removelink = (link : any): void => {
+    console.log(link);
     let linkscopy = [...this.state.links];
-    let indexlinktoremove = linkscopy.findIndex(e => (e.source === link.source) || (e.target === link.target) );
-    if (indexlinktoremove === -1){
-      indexlinktoremove = linkscopy.findIndex(e => (e.source === link.target) || (e.target === link.source) );
-    }
-    this.setState({ links : linkscopy.splice(indexlinktoremove, 1) });
+    let indexlinktoremove = linkscopy.findIndex(e => e === link);
+    console.log(indexlinktoremove);
+    linkscopy.splice(indexlinktoremove, 1);
+    this.setState({ links : linkscopy });
   }
 
 

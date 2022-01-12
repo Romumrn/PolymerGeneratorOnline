@@ -1,5 +1,7 @@
 import * as React from "react";
 import * as d3 from "d3";
+import Menu from '@mui/material/Menu';
+import MenuItem from '@mui/material/MenuItem';
 
 type node = {
   resname: string,
@@ -12,17 +14,12 @@ type link = {
   target: node
 }
 
-interface stateviewer {
-  nodes: node[];
-  links: link[];
-}
-
 interface propsviewer {
   nodes: node[];
   links: link[];
   rmnode: (id: any) => void,
   rmlink: (link: any) => void
-  addlink: (link1: node, link2:node) => void
+  addlink: (link1: node, link2: node) => void
 }
 
 function hashStringToColor(str: string) {
@@ -36,8 +33,35 @@ function hashStringToColor(str: string) {
   return "#" + ("0" + r.toString(16)).substr(-2) + ("0" + g.toString(16)).substr(-2) + ("0" + b.toString(16)).substr(-2);
 };
 
+interface statecustommenu {
+  x: number,
+  y: number,
+  show: boolean
+}
 
-export default class GeneratorViewer extends React.Component<propsviewer, stateviewer> {
+export default class GeneratorViewer extends React.Component<propsviewer, statecustommenu> {
+
+
+  state = { x: 0, y: 0, show: false };
+
+  setContextMenu() {
+    this.setState({ x: 0, y: 0, show: false });
+  };
+
+  handleClose = () => {
+    this.setContextMenu();
+  };
+
+  handleContextMenu = (event: React.MouseEvent) => {
+    console.log(event);
+    event.preventDefault();
+    this.setState({ x: event.clientX, y: event.clientY, show: true });
+  };
+
+
+
+  // Ajouter un point d'exclamation veut dire qu'on est sur que la valeur n'est pas nul
+
   ref!: SVGSVGElement;
 
   //https://reactjs.org/docs/react-component.html#componentdidupdate
@@ -87,7 +111,7 @@ export default class GeneratorViewer extends React.Component<propsviewer, statev
       .attr("stroke-linecap", "round")
       .attr("source", function (d: any) { return d.source.id })
       .attr("target", function (d: any) { return d.target.id })
-      .on("click", function (d: any) { rmlink(d) });
+      .on("click", function (e: EventTarget, d: link) { rmlink(d) });
 
     // Define node with enter and props nodes
     const node = context.append("g")
@@ -148,9 +172,9 @@ export default class GeneratorViewer extends React.Component<propsviewer, statev
       }
       d.fx = null;
       d.fy = null;
-      contact = simulation.incontact(event.x, event.y,d.id);
-      if (contact !== null){
-        addlink( d, contact)
+      contact = simulation.incontact(event.x, event.y, d.id);
+      if (contact !== null) {
+        addlink(d, contact)
       }
     }
 
@@ -168,9 +192,9 @@ export default class GeneratorViewer extends React.Component<propsviewer, statev
         node = nodes[i];
         dx = x - node.x;
         dy = y - node.y;
-        dist = Math.sqrt( dx * dx + dy * dy);
-        if ( (dist < radius*2) && (node.id !== id)) {
-         return node;
+        dist = Math.sqrt(dx * dx + dy * dy);
+        if ((dist < radius * 2) && (node.id !== id)) {
+          return node;
         }
       }
       return null;
@@ -203,8 +227,22 @@ export default class GeneratorViewer extends React.Component<propsviewer, statev
 
   render() {
     return (
-      <div className="svg">
-        <svg className="container" ref={(ref: SVGSVGElement) => this.ref = ref}></svg>
+      <div className="svg" onContextMenu={this.handleContextMenu} style={{ cursor: 'context-menu' }}>
+        <svg className="container" id="svg" ref={(ref: SVGSVGElement) => this.ref = ref}></svg>
+
+        <Menu
+          open={this.state.show === true}
+          onClose={this.handleClose}
+          anchorReference="anchorPosition"
+          anchorPosition={{ top: this.state.y + 2 , left: this.state.x + 2 }}
+        >
+          <MenuItem onClick={this.handleClose}>Smart feature 1</MenuItem>
+          <MenuItem onClick={this.handleClose}>Smart feature 2</MenuItem>
+          <MenuItem onClick={this.handleClose}>Super feature</MenuItem>
+          <MenuItem onClick={this.handleClose}>Awesome feature</MenuItem>
+          <MenuItem onClick={this.handleClose}>Super mega idea</MenuItem>
+        </Menu>
+
       </div>);
   }
 }
