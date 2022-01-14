@@ -1,0 +1,37 @@
+{
+    "martini3": [
+        "PE",
+        "PS",
+        "PSS",
+        "PMA",
+        "P3HT",
+        "GLY",
+        "ALA",
+        "CYS",
+        "VAL",
+        "LEU"
+    ],
+    "parmbsc1": [
+        "DA5",
+        "DA",
+        "DA3",
+        "DT5",
+        "DT",
+        "DT3",
+        "DG5"
+    ],
+    "martini2": [
+        "PP",
+        "PEO",
+        "P3HT",
+        "PS",
+        "PSS",
+        "OHter",
+        "PE",
+        "PDADMA"
+    ],
+    "gromos53A6": [
+        "Hter",
+        "P3HT"
+    ]
+}

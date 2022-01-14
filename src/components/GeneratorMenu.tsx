@@ -3,99 +3,59 @@ import Button from "@mui/material/Button";
 import TextField from "@mui/material/TextField";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
+import InputLabel from "@mui/material/InputLabel";
+import DataForm from '../data/DataForm.json';
 
 interface propsmenu {
-  addnode : (arg0: resform) => void,
-  addlink : (arg1: any, arg2: any) => void
+  addnode: (arg0: resform) => void,
+  addlink: (arg1: any, arg2: any) => void
 }
 
 interface resform {
-  forcefield: string;
-  moleculeToAdd: string| null;
-  numberToAdd: number| null;
-  id1 : number | null ;
-  id2 : number | null; 
+  forcefield: string | null;
+  moleculeToAdd: string | null;
+  numberToAdd: number | null;
+  id1: number | null;
+  id2: number | null;
 }
 
-export default class GeneratorMenu extends React.Component<propsmenu ,resform > {
+export default class GeneratorMenu extends React.Component<propsmenu, resform> {
 
-  constructor(props : propsmenu) {
+  constructor(props: propsmenu) {
     // Required step: always call the parent class' constructor
     super(props);
 
     // Set the state directly. Use props if necessary.
     this.state = {
-      forcefield: this.listff[0],
-      moleculeToAdd: this.listmol[0],
+      forcefield: null,
+      moleculeToAdd: null,
       numberToAdd: 1,
-      id1 : null,
-      id2 : null,
+      id1: null,
+      id2: null,
     }
-    }
-  
-  // ffprop: { [name: string]: forcefieldprop } = {};
-  // martini3 = {
-  //   moleculeavaible: ['glucose', 'fructose', 'galactose'],
+  }
 
-  // };
-  // martini2 = {
-  //   moleculeavaible: ['alanine', 'leucine', 'trucine'],
-  // };
+  GetMolFField(jsonformdata: any, ff: string): string[] {
+    return jsonformdata[ff];
+  }
 
-  listff = [
-    "martini3",
-    "parmbsc1",
-    "martini3_beta",
-    "2016H66",
-    "oplsaaLigParGen",
-    "gromos53A6",
-    "martini2",
-  ];
-
-  listmol = [
-    "Glucose",
-    "Fructose",
-    "Galactose"
-  ]
 
   render() {
-    return (
-      <div>
+    let forcefield = this.state.forcefield;
 
-        <p>Upload your previous polymer</p>
-
-        <input type="file" id="docpicker" accept=".json" />
-
-        <form>
-          <div className="container">
-            <p>Choose your forcefield :</p>
-
-            <Select
-              id="forcefield"
-              label="forcefield"
-              defaultValue={this.listff[0]}
-              onChange={v => this.setState({ forcefield: v.target.value })}>
-              <option disabled selected>Forcefield avaible :</option>
-
-              {this.listff.map(e => {
-                return (<MenuItem key={e} value={e}> {e} </MenuItem>
-                )
-              })
-              }
-
-            </Select>
-
-          <p>Add your molecule :</p>
+    const renderforcfieldform = () => {
+      if (forcefield) {
+        return <div><p>Add your molecule :</p>
 
           <Select
             id="moleculeToAdd"
             label="Molecule"
-            defaultValue={this.listmol[0]}
+            defaultValue={"this.GetMolFField(DataForm, forcefield)[0]"}
             onChange={v => this.setState({ moleculeToAdd: v.target.value })}
           >
             <option disabled selected>Molecule avaible :</option>
 
-            {this.listmol.map(e => {
+            {this.GetMolFField(DataForm, forcefield).map(e => {
               return (<MenuItem key={e} value={e}> {e} </MenuItem>
               )
             })
@@ -119,7 +79,7 @@ export default class GeneratorMenu extends React.Component<propsmenu ,resform > 
           </Button>
 
           <p>Add a new link : </p>
-          
+
           <TextField
             label="id1"
             type="number"
@@ -140,9 +100,50 @@ export default class GeneratorMenu extends React.Component<propsmenu ,resform > 
           <Button
             id="addlink"
             variant="contained"
-            onClick={() => this.props.addlink(this.state.id1 , this.state.id2)}>
+            onClick={() => this.props.addlink(this.state.id1, this.state.id2)}>
             add link
           </Button>
+        </div>
+      } else {
+        return null;
+      }
+    }
+
+
+
+    return (
+      <div>
+
+        <p>Upload your previous polymer</p>
+
+        <input type="file" id="docpicker" accept=".json" />
+
+        <form>
+          <div className="container">
+            <p>Choose your forcefield :</p>
+
+            <InputLabel id="forcefield">forcefield</InputLabel>
+            <Select
+              id="forcefield"
+              label="forcefield"
+              defaultValue={null}
+              onChange={ 
+                v =>  this.setState({ forcefield: v.target.value })
+                }>
+              <option disabled selected>Forcefield avaible :</option>
+              
+              {Object.keys(DataForm).map(e => {
+                return (<MenuItem key={e} value={e}> {e} </MenuItem>
+                )
+              })
+              }
+
+            </Select>
+
+            {
+              renderforcfieldform()
+            }
+
 
 
             <p> Explication : </p>
@@ -151,11 +152,12 @@ export default class GeneratorMenu extends React.Component<propsmenu ,resform > 
               <li>Remove : click on a node or a link</li>
               <li>Then download your polymer in json</li>
             </ul>
-          <button type="submit" name="download" id="download">
-            Json download
-          </button>
+            <button type="submit" name="download" id="download">
+              Json download
+            </button>
+          </div>
+        </form >
       </div>
-      </form >
-      </div>
-    )};
+    )
+  };
 }
