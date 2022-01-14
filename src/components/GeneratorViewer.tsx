@@ -2,24 +2,14 @@ import * as React from "react";
 import * as d3 from "d3";
 import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
-
-type node = {
-  resname: string,
-  seqid: 0,
-  id: number,
-}
-
-type link = {
-  source: node,
-  target: node
-}
+import { SimulationNode, SimulationLink } from './Form'
 
 interface propsviewer {
-  nodes: node[];
-  links: link[];
+  nodes: SimulationNode[];
+  links: SimulationLink[];
   rmnode: (id: any) => void,
   rmlink: (link: any) => void
-  addlink: (link1: node, link2: node) => void
+  addlink: (link1: SimulationNode, link2: SimulationNode) => void
 }
 
 function hashStringToColor(str: string) {
@@ -36,35 +26,33 @@ function hashStringToColor(str: string) {
 interface statecustommenu {
   x: number,
   y: number,
+  isnode: string | undefined,
   show: boolean
 }
 
 export default class GeneratorViewer extends React.Component<propsviewer, statecustommenu> {
 
 
-  state = { x: 0, y: 0, show: false };
-
-  setContextMenu() {
-    this.setState({ x: 0, y: 0, show: false });
-  };
-
-  handleClose = () => {
-    this.setContextMenu();
-  };
-
-  handleContextMenu = (event: React.MouseEvent) => {
-    console.log(event);
-    event.preventDefault();
-    this.setState({ x: event.clientX, y: event.clientY, show: true });
-  };
-
-
-
   // Ajouter un point d'exclamation veut dire qu'on est sur que la valeur n'est pas nul
 
   ref!: SVGSVGElement;
 
-  //https://reactjs.org/docs/react-component.html#componentdidupdate
+  taille = 800;
+  radius = 10;
+
+  // Define forcefield 
+  simulation =  d3.forceSimulation<SimulationNode, SimulationLink>()
+    .force("charge", d3.forceManyBody())
+    .force("x", d3.forceX(this.taille / 2).strength(0.02))
+    .force("y", d3.forceY(this.taille / 2).strength(0.02))
+    .force("link", d3.forceLink()
+      .id(function(d : any) { 
+        console.log("DING");console.log(d);return d.id; }
+      )
+      .distance(this.radius * 2)
+    )
+    
+    //https://reactjs.org/docs/react-component.html#componentdidupdate
 
   componentDidMount() {
     // activate
@@ -72,12 +60,36 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
   }
 
   componentDidUpdate() {
-    // remove old svg node
-    d3.selectAll("g").remove();
+    //console.log(this.props.nodes);
+    // remove old svg
+    //d3.selectAll("g").remove();
     // show the new graph
     this.chart();
   }
 
+
+  // componentDidUpdate() {
+  //   // remove old svg
+  //  // d3.selectAll("g").remove();
+  //   // show the new graph
+  //  // this.chart();
+  //  const svg = d3.select(this.ref);
+  //  const nodes = svg.selectAll("g.nodes").data( this.props.nodes);
+  //  nodes.enter()
+  // }
+
+
+
+  // // Define graph property
+  // chart = () => {
+  //   const taille = 800,
+  //     radius = 10,
+  //     rmnode = this.props.rmnode,
+  //     rmlink = this.props.rmlink,
+  //     addlink = this.props.addlink;
+
+
+  // Define graph property
   chart = () => {
     const taille = 800,
       radius = 10,
@@ -91,107 +103,109 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
       .attr("width", taille)
       .attr("height", taille);
 
-    // Define forcefield 
-    const simulation: any = d3.forceSimulation()
-      .force("link", d3.forceLink().distance(radius * 2))
-      .force("charge", d3.forceManyBody())
-      .force("x", d3.forceX(taille / 2).strength(0.02))
-      .force("y", d3.forceY(taille / 2).strength(0.02))
-
     // Define link with enter and the props link
-    var link = context.append("g")
-      .attr("class", "links")
-      .selectAll("line")
-      .data(this.props.links)
+    var link = context.selectAll("line.links")
+      .data(this.props.links, (d: any) => d.source.id + "-" + d.target.id)
       .enter()
       .append("line")
+      .attr("class", "links")
       .attr("stroke", "grey")
       .attr("stroke-width", 6)
       .attr("opacity", 0.5)
       .attr("stroke-linecap", "round")
       .attr("source", function (d: any) { return d.source.id })
       .attr("target", function (d: any) { return d.target.id })
-      .on("click", function (e: EventTarget, d: link) { rmlink(d) });
+      .on("click", function (e: EventTarget, d: SimulationLink) { rmlink(d) });
 
     // Define node with enter and props nodes
-    const node = context.append("g")
-      .attr("class", "nodes")
-      .selectAll("circle")
-      .data(this.props.nodes)
+    const node = context.selectAll("circle.nodes")
+      .data(this.props.nodes, (d: any) => d.id)
       .enter()
       .append('circle')
+      .attr("class", "nodes")
       .attr("r", radius)
-      .attr("fill", function (d: node) { return hashStringToColor(d.resname) })
+      .attr("fill", function (d: SimulationNode) { return hashStringToColor(d.resname) })
       .attr('stroke', "grey")
       .attr("stroke-width", "2")
+      .attr("id", function (d: SimulationNode) { return d.id })
       .call(d3.drag()
         .on("start", dragstarted)
         .on("drag", dragged)
         .on("end", dragended))
-      .on('click', function (e: any, d: node) {
+      .on('click', function (e: any, d: SimulationNode) {
         if (e.ctrlKey) {
-          // d3.select(this.)
-          //   .attr('stroke', "black")
-          //   .attr("class", "ctrltrue");
+          //In case of multiple selection
         }
         else {
           //remove node from json
-          console.log(d.id);
           rmnode(d.id);
         }
       });
 
     // Add a title to each node with his name and his id
     node.append("title")
-      .text(function (d: node) {
+      .text(function (d: SimulationNode) {
         let title = d.resname + " : " + d.id;
         return title;
       });
 
 
-    simulation.nodes(this.props.nodes).on("tick", ticked);
-    simulation.force("link").links(this.props.links);
+    //const pnodes = this.simulation.nodes() ;
+    //console.log( pnodes );
+    const snodes = context.selectAll("circle.nodes")
+    const slinks = context.selectAll("line.links")
 
-    function dragstarted(event: any, d: any) {
+      console.log("link");
+    console.log( slinks);
+    if (slinks.empty()) return 
+    const _slinks =this.props.links//[ {source:"1",target:"2"} ];
+    this.simulation.nodes(snodes).on("tick", ticked).velocityDecay(0.3);
+    this.simulation.force<d3.ForceLink<SimulationNode, SimulationLink>>("link")?.links(_slinks);
+
+
+    // Define drag behaviour  
+      const self = this;
+    function dragstarted(event: any, d: any /*SimulationNode*/  ) {
       if (!event.active) {
-        simulation.alphaTarget(0);
+        self.simulation.alphaTarget(0).velocityDecay(0.9);
       }
+      console.log("je suis drag" )
+      console.log(d);
       d.fx = d.x;
       d.fy = d.y;
     }
 
-    function dragged(event: any, d: any) {
+    function dragged(event: any, d:  any /*SimulationNode*/ ) {
       d.fx = event.x;
       d.fy = event.y;
     }
 
-    function dragended(event: any, d: any) {
+    function dragended(event: any, d:  any /*SimulationNode*/ ) {
       let contact;
       if (!event.active) {
-        simulation.alphaTarget(0).restart();
+        self.simulation.alphaTarget(0).velocityDecay(0.9);
       }
       d.fx = null;
       d.fy = null;
-      contact = simulation.incontact(event.x, event.y, d.id);
+      contact =  incontact(event.x, event.y, d.id);
       if (contact !== null) {
         addlink(d, contact)
       }
     }
 
-    // Add function to detect collision and create link
-    simulation.incontact = function (x: number, y: number, id: number) {
-      var nodes = simulation.nodes();
-      var i = 0,
-        n = nodes.length,
+    // Add function to detect contact between nodes and create link
+   const incontact =  (x: number, y: number, id: number) => {
+      const nodes = self.simulation.nodes();
+      let n = nodes.length,
         dx,
         dy,
         dist,
         node;
 
-      for (i = 0; i < n; ++i) {
-        node = nodes[i];
-        dx = x - node.x;
-        dy = y - node.y;
+      for (let i = 0; i < n; ++i) {
+        node = nodes[i] as SimulationNode;
+        dx = x - (node.x ? node.x : 0);
+        dy = y - (node.y ? node.y : 0);
         dist = Math.sqrt(dx * dx + dy * dy);
         if ((dist < radius * 2) && (node.id !== id)) {
           return node;
@@ -200,6 +214,8 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
       return null;
     };
 
+
+    // Define ticked with coords 
     function ticked() {
       link
         .attr("x1", function (d: any) {
@@ -225,7 +241,41 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
     }
   }
 
+  state = { x: 0, y: 0, isnode: undefined, show: false };
+
+  handleClose = () => {
+    this.setState({ show: false });
+  };
+
+  handleContextMenu = (event: React.MouseEvent) => {
+    console.log(event);
+    event.preventDefault();
+    let nodeid = document.elementFromPoint(event.clientX, event.clientY)?.getAttribute('id');
+    if (typeof (nodeid) === 'string') {
+      this.setState({ x: event.clientX, y: event.clientY, isnode: nodeid, show: true });
+    }
+    else {
+      this.setState({ x: event.clientX, y: event.clientY, show: true });
+    }
+  };
+
   render() {
+
+    let node: any = this.state.isnode;
+    const rmnodefromContextMenu = (event: React.MouseEvent) => {
+      console.log(node);
+      this.props.rmnode(node);
+      this.handleClose();
+    }
+
+    const ifnode = () => {
+      if (!isNaN(node)) {
+        return <MenuItem onClick={rmnodefromContextMenu}> Remove Node {node}</MenuItem>;
+      } else {
+        return null;
+      }
+    }
+
     return (
       <div className="svg" onContextMenu={this.handleContextMenu} style={{ cursor: 'context-menu' }}>
         <svg className="container" id="svg" ref={(ref: SVGSVGElement) => this.ref = ref}></svg>
@@ -234,8 +284,8 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
           open={this.state.show === true}
           onClose={this.handleClose}
           anchorReference="anchorPosition"
-          anchorPosition={{ top: this.state.y + 2 , left: this.state.x + 2 }}
-        >
+          anchorPosition={{ top: this.state.y + 2, left: this.state.x + 2 }} >
+          {ifnode()}
           <MenuItem onClick={this.handleClose}>Smart feature 1</MenuItem>
           <MenuItem onClick={this.handleClose}>Smart feature 2</MenuItem>
           <MenuItem onClick={this.handleClose}>Super feature</MenuItem>
@@ -245,4 +295,5 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
 
       </div>);
   }
+
 }
