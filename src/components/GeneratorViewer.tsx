@@ -5,8 +5,8 @@ import MenuItem from '@mui/material/MenuItem';
 import { SimulationNode, SimulationLink } from './Form'
 
 interface propsviewer {
-  nodes: SimulationNode[];
-  links: SimulationLink[];
+  newNodes: SimulationNode[];
+  newLinks: SimulationLink[];
   rmnode: (id: any) => void,
   rmlink: (link: any) => void
   addlink: (link1: SimulationNode, link2: SimulationNode) => void
@@ -40,19 +40,7 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
   taille = 800;
   radius = 10;
 
-  // Define forcefield 
-  simulation = d3.forceSimulation<SimulationNode, SimulationLink>()
-    .force("charge", d3.forceManyBody())
-    .force("x", d3.forceX(this.taille / 2).strength(0.02))
-    .force("y", d3.forceY(this.taille / 2).strength(0.02))
-    .force("link", d3.forceLink()
-      .id(function (d: any) {
-        //console.log("DING"); console.log(d); return d.id;
-          return d.id;
-      }
-      )
-      .distance(this.radius * 2)
-    )
+
 
   //https://reactjs.org/docs/react-component.html#componentdidupdate
 
@@ -80,17 +68,6 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
   //  nodes.enter()
   // }
 
-
-
-  // // Define graph property
-  // chart = () => {
-  //   const taille = 800,
-  //     radius = 10,
-  //     rmnode = this.props.rmnode,
-  //     rmlink = this.props.rmlink,
-  //     addlink = this.props.addlink;
-
-
   // Define graph property
   chart = () => {
     const taille = 800,
@@ -98,6 +75,20 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
       rmnode = this.props.rmnode,
       rmlink = this.props.rmlink,
       addlink = this.props.addlink;
+
+        // Define forcefield 
+  const simulation = d3.forceSimulation<SimulationNode, SimulationLink>()
+  .force("charge", d3.forceManyBody())
+  .force("x", d3.forceX(taille / 2).strength(0.02))
+  .force("y", d3.forceY(taille / 2).strength(0.02))
+  .force("link", d3.forceLink()
+    .id(function (d: any) {
+      //console.log("DING"); console.log(d); return d.id;
+        return d.id;
+    }
+    )
+    .distance(this.radius * 2)
+  )
 
     // Define svg box
     const context: any = d3.select(this.ref)
@@ -107,7 +98,7 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
 
     // Define link with enter and the props link
     var link = context.selectAll("line.links")
-      .data(this.props.links, (d: any) => d.source.id + "-" + d.target.id)
+      .data(this.props.newLinks, (d: any) => d.source.id + "-" + d.target.id)
       .enter()
       .append("line")
       .attr("class", "links")
@@ -121,7 +112,7 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
 
     // Define node with enter and props nodes
     const node = context.selectAll("circle.nodes")
-      .data(this.props.nodes, (d: any) => d.id)
+      .data(this.props.newNodes, (d: any) => d.id)
       .enter()
       .append('circle')
       .attr("class", "nodes")
@@ -134,12 +125,13 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
         .on("start", dragstarted)
         .on("drag", dragged)
         .on("end", dragended))
-      .on('click', function (e: any, d: SimulationNode) {
+      .on('click', function (this : any, e: any, d: SimulationNode) {
         if (e.ctrlKey) {
           //In case of multiple selection
         }
         else {
           //remove node from json
+          this.remove();
           rmnode(d.id);
         }
       });
@@ -153,38 +145,44 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
 
     // //const pnodes = this.simulation.nodes() ;
     // //console.log( pnodes );
-    const snodes = context.selectAll("circle.nodes").data()
-    const slinks = context.selectAll("line.links").data()
+    const nodes = context.selectAll("circle.nodes").data()
+    const links = context.selectAll("line.links").data()
 
     // console.log( "print avec data")
     // console.log( snodes);
-    this.simulation.nodes(snodes).on("tick", ticked);
-    this.simulation.force<d3.ForceLink<SimulationNode, SimulationLink>>("link")?.links(slinks);
+    simulation.nodes(nodes).on("tick", ticked);
+    simulation.force<d3.ForceLink<SimulationNode, SimulationLink>>("link")?.links(links);
 
     // Define drag behaviour  
     const self = this;
     function dragstarted(event: any, d: any /*SimulationNode*/) {
       if (!event.active) {
-        self.simulation.alphaTarget(0).velocityDecay(0.9);
+        simulation.alphaTarget(0).velocityDecay(0.9);
+        simulation.restart();
       }
-      console.log("je suis drag")
+      console.log("je bouge !!!")
       console.log(d);
-      d.fx = d.x;
-      d.fy = d.y;
+      // d.fx = d.x;
+      // d.fy = d.y;
     }
 
     function dragged(event: any, d: any /*SimulationNode*/) {
-      d.fx = event.x;
-      d.fy = event.y;
+      if (!event.active) {
+        //self.simulation.alphaTarget(0).velocityDecay(0.9);
+        simulation.restart()
+      }
+      d.x = event.x;
+      d.y = event.y;
     }
 
     function dragended(event: any, d: any /*SimulationNode*/) {
       let contact;
       if (!event.active) {
-        self.simulation.alphaTarget(0).velocityDecay(0.9);
+       simulation.alphaTarget(0).velocityDecay(0.9);
+      simulation.restart();
       }
-      d.fx = null;
-      d.fy = null;
+      d.x = event.x;
+      d.y = event.y;
       contact = incontact(event.x, event.y, d.id);
       if (contact !== null) {
         addlink(d, contact)
@@ -193,7 +191,7 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
 
     // Add function to detect contact between nodes and create link
     const incontact = (x: number, y: number, id: number) => {
-      const nodes = self.simulation.nodes();
+      const nodes = simulation.nodes();
       let n = nodes.length,
         dx,
         dy,
