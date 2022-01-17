@@ -5,21 +5,18 @@ import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
 import InputLabel from "@mui/material/InputLabel";
 import DataForm from '../data/DataForm.json';
+import { FormState } from './Form'
 
 interface propsmenu {
-  addnode: (arg0: resform) => void,
+  addnode: (arg0: FormState) => void,
   addlink: (arg1: any, arg2: any) => void
 }
 
-interface resform {
-  forcefield: string | null;
-  moleculeToAdd: string | null;
-  numberToAdd: number | null;
+interface GeneratorMenuState extends FormState {
   id1: number | undefined;
   id2: number | undefined;
 }
-
-export default class GeneratorMenu extends React.Component<propsmenu, resform> {
+export default class GeneratorMenu extends React.Component<propsmenu, GeneratorMenuState> {
 
   constructor(props: propsmenu) {
     // Required step: always call the parent class' constructor
@@ -27,8 +24,8 @@ export default class GeneratorMenu extends React.Component<propsmenu, resform> {
 
     // Set the state directly. Use props if necessary.
     this.state = {
-      forcefield: null,
-      moleculeToAdd: null,
+      forcefield: '',
+      moleculeToAdd: '',
       numberToAdd: 1,
       id1: undefined,
       id2: undefined,
