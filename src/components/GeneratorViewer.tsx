@@ -163,7 +163,7 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
       .attr("target", function (d: any) { newNodesID.add(d.target.id);return d.target.id })
       .on("click", function (e: EventTarget, d: SimulationLink) { rmlink(d) });
 
-    if (node.size() == 0) {
+    if (node.size() === 0) {
       // Not Cost efficient
       context.selectAll<SVGCircleElement, SimulationNode>('circle.nodes')
         .filter( (d:SimulationNode) => newNodesID.has(d.id))
@@ -200,9 +200,6 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
         return title;
       });
 
-
-    //const pnodes = this.simulation.nodes() ;
-    //console.log( pnodes );
     const snodes: SimulationNode[] = []
     context.selectAll("circle.nodes").each((d: any) => snodes.push(d))
     const slinks: SimulationLink[] = [];
