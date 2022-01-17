@@ -41,18 +41,20 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
   radius = 10;
 
   // Define forcefield 
-  simulation =  d3.forceSimulation<SimulationNode, SimulationLink>()
+  simulation = d3.forceSimulation<SimulationNode, SimulationLink>()
     .force("charge", d3.forceManyBody())
     .force("x", d3.forceX(this.taille / 2).strength(0.02))
     .force("y", d3.forceY(this.taille / 2).strength(0.02))
     .force("link", d3.forceLink()
-      .id(function(d : any) { 
-        console.log("DING");console.log(d);return d.id; }
+      .id(function (d: any) {
+        //console.log("DING"); console.log(d); return d.id;
+          return d.id;
+      }
       )
       .distance(this.radius * 2)
     )
-    
-    //https://reactjs.org/docs/react-component.html#componentdidupdate
+
+  //https://reactjs.org/docs/react-component.html#componentdidupdate
 
   componentDidMount() {
     // activate
@@ -149,52 +151,48 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
         return title;
       });
 
+    // //const pnodes = this.simulation.nodes() ;
+    // //console.log( pnodes );
+    const snodes = context.selectAll("circle.nodes").data()
+    const slinks = context.selectAll("line.links").data()
 
-    //const pnodes = this.simulation.nodes() ;
-    //console.log( pnodes );
-    const snodes = context.selectAll("circle.nodes")
-    const slinks = context.selectAll("line.links")
-
-      console.log("link");
-    console.log( slinks);
-    if (slinks.empty()) return 
-    const _slinks =this.props.links//[ {source:"1",target:"2"} ];
-    this.simulation.nodes(snodes).on("tick", ticked).velocityDecay(0.3);
-    this.simulation.force<d3.ForceLink<SimulationNode, SimulationLink>>("link")?.links(_slinks);
-
+    // console.log( "print avec data")
+    // console.log( snodes);
+    this.simulation.nodes(snodes).on("tick", ticked);
+    this.simulation.force<d3.ForceLink<SimulationNode, SimulationLink>>("link")?.links(slinks);
 
     // Define drag behaviour  
-      const self = this;
-    function dragstarted(event: any, d: any /*SimulationNode*/  ) {
+    const self = this;
+    function dragstarted(event: any, d: any /*SimulationNode*/) {
       if (!event.active) {
         self.simulation.alphaTarget(0).velocityDecay(0.9);
       }
-      console.log("je suis drag" )
+      console.log("je suis drag")
       console.log(d);
       d.fx = d.x;
       d.fy = d.y;
     }
 
-    function dragged(event: any, d:  any /*SimulationNode*/ ) {
+    function dragged(event: any, d: any /*SimulationNode*/) {
       d.fx = event.x;
       d.fy = event.y;
     }
 
-    function dragended(event: any, d:  any /*SimulationNode*/ ) {
+    function dragended(event: any, d: any /*SimulationNode*/) {
       let contact;
       if (!event.active) {
         self.simulation.alphaTarget(0).velocityDecay(0.9);
       }
       d.fx = null;
       d.fy = null;
-      contact =  incontact(event.x, event.y, d.id);
+      contact = incontact(event.x, event.y, d.id);
       if (contact !== null) {
         addlink(d, contact)
       }
     }
 
     // Add function to detect contact between nodes and create link
-   const incontact =  (x: number, y: number, id: number) => {
+    const incontact = (x: number, y: number, id: number) => {
       const nodes = self.simulation.nodes();
       let n = nodes.length,
         dx,
