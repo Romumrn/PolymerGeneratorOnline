@@ -48,8 +48,6 @@ export default class GeneratorMenu extends React.Component<propsmenu, GeneratorM
     }
   }
 
-
-
   CheckNewLink(idLink1: number | undefined, idLink2: number | undefined): void {
     // check undefined value : 
 
