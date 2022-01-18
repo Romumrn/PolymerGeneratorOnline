@@ -1,3 +1,4 @@
+import {SimulationNodeDatum, SimulationLinkDatum} from 'd3';
 
 export interface FormState {
     forcefield: string;
@@ -5,7 +6,7 @@ export interface FormState {
     numberToAdd: number;
   }
 
-export interface SimulationNode{
+export interface SimulationNode extends SimulationNodeDatum {
   resname : string,
   seqid : number,
   id: number|string
@@ -15,7 +16,7 @@ export interface SimulationNode{
   fy? : number|null
 }
 
-export interface SimulationLink {
+export interface SimulationLink extends SimulationNodeDatum{
   source: SimulationNode,
   target: SimulationNode
 }
