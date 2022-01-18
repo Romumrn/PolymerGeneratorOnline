@@ -23,12 +23,11 @@ export default class GeneratorManager extends React.Component {
   }
 
   currentAvaibleID = 0;
-  generateID = (): number => {
+  generateID = (): string => {
     this.currentAvaibleID++;
-    return this.currentAvaibleID
+    return  this.currentAvaibleID.toString()
   }
 
-  // A typer !!!!
   addnode = (toadd: FormState): void => {
     const newMolecule: Molecule[] = [];
     let newlinks = [];
@@ -51,9 +50,6 @@ export default class GeneratorManager extends React.Component {
       }
 
     }
-    //     this.setState({ links: this.state.links.concat(newlinks) });
-    // this.setState({ nodes: this.state.nodes.concat(newMolecule) });
-
     this.setState({ links: newlinks });
     this.setState({ nodes: newMolecule });
   }
@@ -63,7 +59,7 @@ export default class GeneratorManager extends React.Component {
       "source": node1,
       "target": node2
     }];
-    this.setState({ links: this.state.links.concat(newlinks) });
+    this.setState({ links: newlinks });
   }
 
 

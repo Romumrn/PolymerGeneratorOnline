@@ -13,10 +13,16 @@ interface propsmenu {
 }
 
 interface GeneratorMenuState extends FormState {
-  id1: number | undefined;
-  id2: number | undefined;
+  id1: string | undefined;
+  id2: string | undefined;
 }
 export default class GeneratorMenu extends React.Component<propsmenu, GeneratorMenuState> {
+  GetMolFField(jsonformdata: any, ff: string): string[] {
+    return jsonformdata[ff];
+  }
+
+  defaultValueForcefield: string = "martini3";
+  defaultValueMolecule: string = this.GetMolFField(DataForm , this.defaultValueForcefield )[0];
 
   constructor(props: propsmenu) {
     // Required step: always call the parent class' constructor
@@ -24,17 +30,15 @@ export default class GeneratorMenu extends React.Component<propsmenu, GeneratorM
 
     // Set the state directly. Use props if necessary.
     this.state = {
-      forcefield: '',
-      moleculeToAdd: '',
+      forcefield: this.defaultValueForcefield,
+      moleculeToAdd: this.defaultValueMolecule,
       numberToAdd: 1,
       id1: undefined,
       id2: undefined,
     }
   }
 
-  GetMolFField(jsonformdata: any, ff: string): string[] {
-    return jsonformdata[ff];
-  }
+
 
   CheckNewMolecule( ): void {
     if( this.state.forcefield == null){
@@ -48,7 +52,7 @@ export default class GeneratorMenu extends React.Component<propsmenu, GeneratorM
     }
   }
 
-  CheckNewLink(idLink1: number | undefined, idLink2: number | undefined): void {
+  CheckNewLink(idLink1: string | undefined, idLink2: string | undefined): void {
     // check undefined value : 
 
     if ((typeof (idLink1) == 'undefined') || (typeof (idLink2) == 'undefined')) {
@@ -88,7 +92,7 @@ export default class GeneratorMenu extends React.Component<propsmenu, GeneratorM
             id="moleculeToAdd"
             label="Molecule"
             variant="outlined"
-            defaultValue=''
+            defaultValue={this.defaultValueMolecule}
             onChange={v => this.setState({ moleculeToAdd: v.target.value })}
           >
 
@@ -121,7 +125,7 @@ export default class GeneratorMenu extends React.Component<propsmenu, GeneratorM
             type="number"
             InputProps={{ inputProps: { min: 0, max: 100 } }}
             value={this.state.id1}
-            onChange={v => this.setState({ id1: Number(v.target.value) })}
+            onChange={v => this.setState({ id1: v.target.value })}
             variant="outlined"
           />
           <TextField
@@ -129,14 +133,14 @@ export default class GeneratorMenu extends React.Component<propsmenu, GeneratorM
             type="number"
             InputProps={{ inputProps: { min: 0, max: 100 } }}
             value={this.state.id2}
-            onChange={v => this.setState({ id2: Number(v.target.value) })}
+            onChange={v => this.setState({ id2: v.target.value })}
             variant="outlined"
           />
 
           <Button
             id="addlink"
             variant="contained"
-            onClick={() => this.CheckNewLink(this.state.id1, this.state.id2)}>
+            onClick={() => this.CheckNewLink( this.state.id1, this.state.id2)}>
             Add link
           </Button>
         </div>
@@ -156,7 +160,7 @@ export default class GeneratorMenu extends React.Component<propsmenu, GeneratorM
           <InputLabel id="select-forcefield">forcefield</InputLabel>
           <Select
             id="select-forcefield"
-            defaultValue=''
+            defaultValue={this.defaultValueForcefield}
             onChange={
               v => this.setState({ forcefield: v.target.value })
             }>
