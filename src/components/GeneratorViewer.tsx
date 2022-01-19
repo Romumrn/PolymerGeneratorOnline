@@ -5,11 +5,11 @@ import MenuItem from '@mui/material/MenuItem';
 import { SimulationNode, SimulationLink } from './Form'
 import './GeneratorViewer.css';
 // import { SimulationLinkDatum } from "d3";
+
+
 interface propsviewer {
   newNodes: SimulationNode[];
   newLinks: SimulationLink[];
-  rmnode: (id: any) => void,
-  rmlink: (link: any) => void
   addlink: (link1: SimulationNode, link2: SimulationNode) => void
 }
 
@@ -27,7 +27,7 @@ function hashStringToColor(str: string) {
 interface statecustommenu {
   x: number,
   y: number,
-  isnode: string | undefined,
+  nodeClick: any | undefined,
   show: boolean
 }
 
@@ -43,6 +43,7 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
   nodeRadius = 10;
   mouseX = 0;
   mouseY = 0;
+
   /* Quad tree structure
   tree =  d3.quadtree<SimulationNode>();
   if(this.props.nodes.length > 0) {
@@ -51,6 +52,7 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
     .y((d)=>d.y??0)
     .addAll(this.props.nodes);
   }*/
+
   // Define forcefield 
   simulation = d3.forceSimulation<SimulationNode, SimulationLink>()
     .force("charge", d3.forceManyBody())
@@ -58,7 +60,7 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
     .force("y", d3.forceY(this.taille / 2).strength(0.02))
     .force("link", d3.forceLink()
       .id(function (d: any) { return d.id; })
-      .distance(this.nodeRadius * 2)
+      .distance(this.nodeRadius * 2.5)
     )
 
   //https://reactjs.org/docs/react-component.html#componentdidupdate
@@ -78,15 +80,22 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
     });
 
   }
-  componentDidUpdate(prevProps: propsviewer) {
+  componentDidUpdate(prevProps: propsviewer , prevStates: statecustommenu ) {
     //check if given props are different from previous
-    if ((prevProps.newNodes === this.props.newNodes) && (prevProps.newLinks === this.props.newLinks)) {
-      console.log("Similar props");
+    if ((prevProps.newNodes === this.props.newNodes) && (prevProps.newLinks === this.props.newLinks) && (prevStates.nodeClick === this.state.nodeClick) ) {
+      console.log("Same props or same state");
       return;
-    };
-
-    this.UpdateSVG();
+    }
+    else{
+      this.UpdateSVG()
+    }
   }
+
+
+  // Il faut regler le probleme de state differente car le svg ne s'update pase quand on supprime un noeuf avec le custom menu 
+
+
+  
 
   handleKey = (e: KeyboardEvent) => {
     console.log("handling key")
@@ -109,23 +118,40 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
 
   // Define graph property
   UpdateSVG = () => {
-    console.log("Updating SVG ????");
-    const rmnode = this.props.rmnode,
-      rmlink = this.props.rmlink,
-      addlink = this.props.addlink;
+
+    const reloadSimulation = () => {
+      console.log("Reload simulation with new svg property");
+
+      const snodes: SimulationNode[] = []
+      context.selectAll("circle.nodes").each((d: any) => snodes.push(d))
+      const slinks: SimulationLink[] = [];
+      context.selectAll("line.links").each((d: any) => slinks.push(d))
+      //console.log(`Updated number of nodes is ${snodes.length}`);
+
+      this.simulation.stop()
+      this.simulation.nodes(snodes)
+        .force<d3.ForceLink<SimulationNode, SimulationLink>>("link")?.links(slinks);
+      this.simulation
+        .on("tick", ticked)
+        .alpha(1)
+        .alphaTarget(0)
+        .velocityDecay(0.3)
+        .restart();
+    }
+
+    const addlink = this.props.addlink;
 
     const context = d3.select(this.ref);
-    // Check that componentDidUpdate did not fire for stg else than node/link-related props
+
     // remove props implementation may require some work
     const node = context.selectAll("circle.nodes")
       .data(this.props.newNodes, (d: any) => d.id)
       .enter();
+
     const link = context.selectAll("line.links")
       .data(this.props.newLinks, (d: any) => d.source.id + "-" + d.target.id)
       .enter();
     if (node.size() === 0 && link.size() === 0) return;
-
-    console.log(`Adding ${node.size()} nodes to SVG`);
 
     // Define link with enter and the props link
     const newNodesID = new Set();
@@ -137,7 +163,9 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
       .attr("stroke-linecap", "round")
       .attr("source", function (d: any) { newNodesID.add(d.source.id); return d.source.id })
       .attr("target", function (d: any) { newNodesID.add(d.target.id); return d.target.id })
-      .on("click", function (this: any, e: EventTarget, d: SimulationLink) { console.log("Kill me plz"); console.log(this); this.remove() });
+      .on("click", function (this: any, e: EventTarget, d: SimulationLink) {
+        removeThisLink(this)
+      });
 
     if (node.size() === 0) {
       console.log("node.size() === 0");
@@ -161,12 +189,9 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
         .on("end", dragended)
       )
       .on('click', function (this: any, e: any, d: SimulationNode) {
-        if (e.ctrlKey) {
-          //In case of multiple selection
-        }
-        else {
-          removeThisNode(this);
-        }
+        if (e.ctrlKey) return
+        else if (e.shiftKey) return;
+        else removeThisNode(this);
       });
 
     // Add a title to each node with his name and his id
@@ -175,12 +200,6 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
         let title = d.resname + " : " + d.id;
         return title;
       });
-
-    const snodes: SimulationNode[] = []
-    context.selectAll("circle.nodes").each((d: any) => snodes.push(d))
-    const slinks: SimulationLink[] = [];
-    context.selectAll("line.links").each((d: any) => slinks.push(d))
-    console.log(`Updated number of nodes is ${snodes.length}`);
 
 
     // Define drag behaviour  
@@ -192,26 +211,22 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
         return;
       }
       console.log("- je bouge - ", d.id)
-      //console.log(event);
     }
 
     const clamp = (x: number, lo: number, hi: number) => {
       return x < lo ? lo : x > hi ? hi : x;
     }
 
-
     function dragged(event: dragEvent, d: SimulationNode) {
       if (event.sourceEvent.shiftKey) {
         console.log("Shift key is pressed/ skipping dragged!");
         return;
       }
-
       d.fx = clamp(event.x, 0, self.taille);
       d.fy = clamp(event.y, 0, self.taille);
       self.simulation.alphaDecay(.0005)
         .velocityDecay(0.6)
         .alpha(0.1).restart();
-
     }
 
     function dragended(event: dragEvent, d: SimulationNode) {
@@ -219,8 +234,6 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
         console.log("Shift key is pressed skipping dragended!");
         return;
       }
-      console.log("- j'ai fini de bouger - ", d.id)
-
       // Comment below for sticky node
       d.fx = null;
       d.fy = null;
@@ -237,26 +250,20 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
     }
 
     function removeThisNode(svgNode: any) {
-
       //remove the node directly in the svg 
       svgNode.remove();
 
       //and then remove link inside svg
       context.selectAll("line.links").filter((link: any) => ((link.source.id === svgNode.id) || (link.target.id === svgNode.id))).remove();
 
-      //re attribute the new slinks and snodes with new svg value
-      const snodes: SimulationNode[] = []
-      context.selectAll("circle.nodes").each((d: any) => snodes.push(d))
-      const slinks: SimulationLink[] = [];
-      context.selectAll("line.links").each((d: any) => slinks.push(d))
+      reloadSimulation()
+    }
 
-      console.log("node ",svgNode.id , "removed ! Simulation RESTART" );
-      self.simulation.stop()
-      self.simulation.nodes(snodes)
-        .force<d3.ForceLink<SimulationNode, SimulationLink>>("link")?.links(slinks);
-      self.simulation.restart();
-
-       
+    function removeThisLink(svgLink: any) {
+      //remove the link directly in the svg 
+      svgLink.remove();
+      // reattribute 
+      reloadSimulation()
     }
 
 
@@ -302,31 +309,23 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
           return d.y;
         });
     }
-    console.log("STOP/RESUME SIMULATION");
-    this.simulation.stop()
-    this.simulation.nodes(snodes)
-      .force<d3.ForceLink<SimulationNode, SimulationLink>>("link")?.links(slinks);
-    this.simulation
-      .on("tick", ticked)
-      .alpha(1)
-      .alphaTarget(0)
-      .velocityDecay(0.3)
-      .restart();
+
+    reloadSimulation()
 
   }
 
-  state = { x: 0, y: 0, isnode: undefined, show: false };
+  state = { x: 0, y: 0, nodeClick: undefined, show: false };
 
   handleClose = () => {
     this.setState({ show: false });
   };
 
   handleContextMenu = (event: React.MouseEvent) => {
-    console.log(event);
+    console.log("Custom menu");
     event.preventDefault();
-    let nodeid = document.elementFromPoint(event.clientX, event.clientY)?.getAttribute('id');
-    if (typeof (nodeid) === 'string') {
-      this.setState({ x: event.clientX, y: event.clientY, isnode: nodeid, show: true });
+    const element = document.elementFromPoint(event.clientX, event.clientY);
+    if (element?.tagName === "circle") {
+      this.setState({ x: event.clientX, y: event.clientY, nodeClick: element, show: true });
     }
     else {
       this.setState({ x: event.clientX, y: event.clientY, show: true });
@@ -335,20 +334,20 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
 
   render() {
 
-    let node: any = this.state.isnode;
+    let node: any = this.state.nodeClick;
+
     const rmnodefromContextMenu = (event: React.MouseEvent) => {
-      console.log(node);
-      this.props.rmnode(node);
+      console.log("Remove node ", node.id)
+      node.remove();
+      d3.select(this.ref).selectAll("line.links").filter((link: any) => ((link.source.id === node.id) || (link.target.id === node.id))).remove();
       this.handleClose();
     }
 
     const ifnode = () => {
-      if (!isNaN(node)) {
-        return <MenuItem onClick={rmnodefromContextMenu}> Remove Node {node}</MenuItem>;
-      } else {
-        return null;
-      }
+      if (node) return <MenuItem onClick={rmnodefromContextMenu}> Remove Node {node.id}</MenuItem>;
+      else return;
     }
+
     const pasteSelectedNode = (e: React.MouseEvent) => {
       console.log("OLE!!!!")
       const [x, y] = [this.mouseX, this.mouseY]; // Target translation point
@@ -372,7 +371,7 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
 
       const [tx, ty] = [x - x0, y - y0];
 
-      console.log("Transalation V  is " + tx, ty);
+      console.log("Translation V  is " + tx, ty);
 
       //Bof 
       d3.select(this.ref).selectAll('g.ghostSel').remove();
