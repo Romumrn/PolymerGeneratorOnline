@@ -28,13 +28,17 @@ interface statecustommenu {
   x: number,
   y: number,
   nodeClick: any | undefined,
-  show: boolean
+  nodeToRemove: any[],
+  show: boolean,
 }
 
 export default class GeneratorViewer extends React.Component<propsviewer, statecustommenu> {
 
+  state: statecustommenu = { x: 0, y: 0, nodeClick: undefined, show: false, nodeToRemove: [] };
+
 
   // Ajouter un point d'exclamation veut dire qu'on est sur que la valeur n'est pas nul
+
 
   ref!: SVGSVGElement;
   frame!: HTMLDivElement;
@@ -43,6 +47,8 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
   nodeRadius = 10;
   mouseX = 0;
   mouseY = 0;
+  prevPropsNewnode : any = null;
+  prevPropsNewLink  : any = null;
 
   /* Quad tree structure
   tree =  d3.quadtree<SimulationNode>();
@@ -53,7 +59,7 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
     .addAll(this.props.nodes);
   }*/
 
-  // Define forcefield 
+  // Define simulation forcefield 
   simulation = d3.forceSimulation<SimulationNode, SimulationLink>()
     .force("charge", d3.forceManyBody())
     .force("x", d3.forceX(this.taille / 2).strength(0.02))
@@ -80,22 +86,25 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
     });
 
   }
-  componentDidUpdate(prevProps: propsviewer , prevStates: statecustommenu ) {
-    //check if given props are different from previous
-    if ((prevProps.newNodes === this.props.newNodes) && (prevProps.newLinks === this.props.newLinks) && (prevStates.nodeClick === this.state.nodeClick) ) {
-      console.log("Same props or same state");
-      return;
+  componentDidUpdate(prevProps: propsviewer, prevStates: statecustommenu) {
+
+    // Il faut regler le probleme de state differente car le svg ne s'update pase quand on supprime un noeuf avec le custom menu 
+    console.log("On rentre dans componentDidUpdate");
+    console.log(this.props);
+    console.log(this.state)
+    //Check state and props 
+    if ((prevProps.newNodes === this.props.newNodes) && (prevProps.newLinks === this.props.newLinks)) {
+      console.log("Same props than earlier")
     }
-    else{
+    else this.UpdateSVG();
+
+    if (this.state.nodeToRemove !== prevStates.nodeToRemove) {
+      console.log("new state nodeToRemove ");
       this.UpdateSVG()
     }
+    else console.log("same state")
   }
 
-
-  // Il faut regler le probleme de state differente car le svg ne s'update pase quand on supprime un noeuf avec le custom menu 
-
-
-  
 
   handleKey = (e: KeyboardEvent) => {
     console.log("handling key")
@@ -119,14 +128,16 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
   // Define graph property
   UpdateSVG = () => {
 
+    const addlink = this.props.addlink;
+    const svgContext = d3.select(this.ref);
+
     const reloadSimulation = () => {
       console.log("Reload simulation with new svg property");
 
       const snodes: SimulationNode[] = []
-      context.selectAll("circle.nodes").each((d: any) => snodes.push(d))
+      svgContext.selectAll("circle.nodes").each((d: any) => snodes.push(d))
       const slinks: SimulationLink[] = [];
-      context.selectAll("line.links").each((d: any) => slinks.push(d))
-      //console.log(`Updated number of nodes is ${snodes.length}`);
+      svgContext.selectAll("line.links").each((d: any) => slinks.push(d))
 
       this.simulation.stop()
       this.simulation.nodes(snodes)
@@ -139,67 +150,93 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
         .restart();
     }
 
-    const addlink = this.props.addlink;
-
-    const context = d3.select(this.ref);
-
-    // remove props implementation may require some work
-    const node = context.selectAll("circle.nodes")
-      .data(this.props.newNodes, (d: any) => d.id)
-      .enter();
-
-    const link = context.selectAll("line.links")
-      .data(this.props.newLinks, (d: any) => d.source.id + "-" + d.target.id)
-      .enter();
-    if (node.size() === 0 && link.size() === 0) return;
-
-    // Define link with enter and the props link
-    const newNodesID = new Set();
-    link.append("line")
-      .attr("class", "links")
-      .attr("stroke", "grey")
-      .attr("stroke-width", 6)
-      .attr("opacity", 0.5)
-      .attr("stroke-linecap", "round")
-      .attr("source", function (d: any) { newNodesID.add(d.source.id); return d.source.id })
-      .attr("target", function (d: any) { newNodesID.add(d.target.id); return d.target.id })
-      .on("click", function (this: any, e: EventTarget, d: SimulationLink) {
-        removeThisLink(this)
-      });
-
-    if (node.size() === 0) {
-      console.log("node.size() === 0");
-      // Not Cost efficient
-      context.selectAll<SVGCircleElement, SimulationNode>('circle.nodes')
-        .filter((d: SimulationNode) => newNodesID.has(d.id))
-        .raise();
+    //Verifier si on doit supprimer des trucs !!! 
+    if (this.state.nodeToRemove.length > 0) {
+      console.log("On veut supprimer ca : ", this.state.nodeToRemove);
+      var nodeToRemovecopy = [...this.state.nodeToRemove];
+      for (const node of nodeToRemovecopy) {
+        console.log("on entre dans la boucle et on supprime ca :", node);
+        svgContext.selectAll("circle").filter((d: any) => (d.id === node.id)).remove();
+        //and then remove link inside svg
+        svgContext.selectAll("line.links").filter((link: any) => ((link.source.id === node.id) || (link.target.id === node.id))).remove();
+      }
+      this.setState({ nodeToRemove: [] });
+      return;
     }
 
-    // Define entering nodes     
-    node.append('circle')
-      .attr("class", "nodes")
-      .attr("r", this.nodeRadius)
-      .attr("fill", function (d: SimulationNode) { return hashStringToColor(d.resname) })
-      .attr('stroke', "grey")
-      .attr("stroke-width", "2")
-      .attr("id", function (d: SimulationNode) { return d.id })
-      .call(d3.drag<SVGCircleElement, SimulationNode>()
-        .on("start", dragstarted)
-        .on("drag", dragged)
-        .on("end", dragended)
-      )
-      .on('click', function (this: any, e: any, d: SimulationNode) {
-        if (e.ctrlKey) return
-        else if (e.shiftKey) return;
-        else removeThisNode(this);
-      });
 
-    // Add a title to each node with his name and his id
-    node.append("title")
+    const newNodesID = new Set();
+    // Verifier si on doit bien ajouter des props ou si c'est deja fait 
+    if (this.prevPropsNewLink !== this.props.newLinks) {
+      const link = svgContext.selectAll("line.links")
+        .data(this.props.newLinks, (d: any) => d.source.id + "-" + d.target.id)
+        .enter();
+
+      
+      link.append("line")
+        .attr("class", "links")
+        .attr("stroke", "grey")
+        .attr("stroke-width", 6)
+        .attr("opacity", 0.5)
+        .attr("stroke-linecap", "round")
+        .attr("source", function (d: any) { newNodesID.add(d.source.id); return d.source.id })
+        .attr("target", function (d: any) { newNodesID.add(d.target.id); return d.target.id })
+        .on("click", function (this: any, e: EventTarget, d: SimulationLink) {
+          removeThisLink(this)
+        });
+    }
+
+
+    // Si des news props apparaissent on ajoute les noeuds !!!
+    if (this.prevPropsNewnode !== this.props.newNodes) {
+      const node = svgContext.selectAll("circle.nodes")
+        .data(this.props.newNodes, (d: any) => d.id)
+        .enter();
+
+      // Define entering nodes     
+      node.append('circle')
+        .attr("class", "nodes")
+        .attr("r", this.nodeRadius)
+        .attr("fill", function (d: SimulationNode) { return hashStringToColor(d.resname) })
+        .attr('stroke', "grey")
+        .attr("stroke-width", "2")
+        .attr("id", function (d: SimulationNode) { return d.id })
+        .call(d3.drag<SVGCircleElement, SimulationNode>()
+          .on("start", dragstarted)
+          .on("drag", dragged)
+          .on("end", dragended)
+        )
+        .on('click', function (this: any, e: any, d: SimulationNode) {
+          if (e.ctrlKey) return
+          else if (e.shiftKey) return;
+          else removeThisNode(this);
+        });
+
+      // Add a title to each node with his name and his id
+      node.append("title")
       .text(function (d: SimulationNode) {
         let title = d.resname + " : " + d.id;
         return title;
-      });
+      })
+    }
+
+
+
+
+    this.prevPropsNewLink = this.props.newLinks;
+    this.prevPropsNewnode = this.props.newNodes;
+
+    // Define link with enter and the props link
+
+    // A rajouté !!!!
+    // if (node.size() === 0) {
+    //   console.log("node.size() === 0");
+    //   // Not Cost efficient
+      svgContext.selectAll<SVGCircleElement, SimulationNode>('circle.nodes')
+        .filter((d: SimulationNode) => newNodesID.has(d.id))
+        .raise();
+    // }
+
 
 
     // Define drag behaviour  
@@ -252,10 +289,8 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
     function removeThisNode(svgNode: any) {
       //remove the node directly in the svg 
       svgNode.remove();
-
       //and then remove link inside svg
-      context.selectAll("line.links").filter((link: any) => ((link.source.id === svgNode.id) || (link.target.id === svgNode.id))).remove();
-
+      svgContext.selectAll("line.links").filter((link: any) => ((link.source.id === svgNode.id) || (link.target.id === svgNode.id))).remove();
       reloadSimulation()
     }
 
@@ -287,7 +322,7 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
       self.frameCount++;
       // console.log(`Tick num ${self.frameCount} alpha:${self.simulation.alpha()} alpha_min:${self.simulation.alphaMin()} alpha_decay:${self.simulation.alphaDecay()}`);
       console.log("Tick");
-      context.selectAll("line.links")
+      svgContext.selectAll("line.links")
         .attr("x1", function (d: any) {
           return d.source.x;
         })
@@ -301,7 +336,7 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
           return d.target.y;
         });
 
-      context.selectAll("circle.nodes")
+      svgContext.selectAll("circle.nodes")
         .attr("cx", function (d: any) {
           return d.x;
         })
@@ -314,8 +349,6 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
 
   }
 
-  state = { x: 0, y: 0, nodeClick: undefined, show: false };
-
   handleClose = () => {
     this.setState({ show: false });
   };
@@ -325,10 +358,10 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
     event.preventDefault();
     const element = document.elementFromPoint(event.clientX, event.clientY);
     if (element?.tagName === "circle") {
-      this.setState({ x: event.clientX, y: event.clientY, nodeClick: element, show: true });
+      this.setState({ x: event.clientX, y: event.clientY, nodeClick: element, show: true, });
     }
     else {
-      this.setState({ x: event.clientX, y: event.clientY, show: true });
+      this.setState({ x: event.clientX, y: event.clientY, show: true, });
     }
   };
 
@@ -337,9 +370,9 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
     let node: any = this.state.nodeClick;
 
     const rmnodefromContextMenu = (event: React.MouseEvent) => {
-      console.log("Remove node ", node.id)
-      node.remove();
-      d3.select(this.ref).selectAll("line.links").filter((link: any) => ((link.source.id === node.id) || (link.target.id === node.id))).remove();
+      console.log("rmnodefromContextMenu", node)
+      this.setState({ nodeToRemove: [node] })
+
       this.handleClose();
     }
 
