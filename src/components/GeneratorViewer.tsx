@@ -38,8 +38,6 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
 
 
   // Ajouter un point d'exclamation veut dire qu'on est sur que la valeur n'est pas nul
-
-
   ref!: SVGSVGElement;
   frame!: HTMLDivElement;
   frameCount = 0
@@ -87,8 +85,6 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
 
   }
   componentDidUpdate(prevProps: propsviewer, prevStates: statecustommenu) {
-
-    // Il faut regler le probleme de state differente car le svg ne s'update pase quand on supprime un noeuf avec le custom menu 
     console.log("On rentre dans componentDidUpdate");
     console.log(this.props);
     console.log(this.state)
@@ -99,10 +95,11 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
     else this.UpdateSVG();
 
     if (this.state.nodeToRemove !== prevStates.nodeToRemove) {
-      console.log("new state nodeToRemove ");
+      console.log("new state nodeToRemove");
       this.UpdateSVG()
     }
     else console.log("same state")
+
   }
 
 
@@ -125,31 +122,41 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
 
 
 
-    // Add brushing
+    // Add brush property
     const brushed = (event: any) => {
+      //Stop simulation when brush
+      this.simulation.stop();
+      //Get brush zone coord
       const selection: any = event.selection; //[[x0, y0], [x1, y1]],
-
       console.log("brush", event);
       if (selection) {
-        const nodeInSvg = d3.select(this.ref).selectAll("circle")
-
-        nodeInSvg
+        //select all node inside brush zone 
+        d3.select(this.ref).selectAll("circle")
           .filter((d: any) => ((d.x < selection[1][0]) && (d.x > selection[0][0]) && (d.y < selection[1][1]) && (d.y > selection[0][1])))
-          .attr( "class", "onfocus");
+          .attr("class", "onfocus");
+        //select all link inside brush zone 
+
+        //Faire verif :
+        //Si 2 noeuds sont selectionnés le lien qui les unis est selectionné par defaut 
+        // d3.select(this.ref).selectAll("line")
+        //   .filter((d: any) => ((d.x < selection[1][0]) && (d.x > selection[0][0]) && (d.y < selection[1][1]) && (d.y > selection[0][1])))
+        //   .attr("class", "onfocus");
       }
+    }
 
-
+    //How to close brush zone after ?????????????????????????????
+    const brushEnd = (event: any) => {
+      //d3.select(this.ref).select(".brush").selectChildren().attr("style" , "display: none");
     }
 
     d3.select(this.ref).append("g")
       .attr("class", "brush")
       .call(d3.brush()
-        .on("start brush end", brushed)
+        .on("start brush", brushed)
+        .on("end", brushEnd)
       );
 
   }
-
-
 
 
   // Define graph property
@@ -199,7 +206,6 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
         .data(this.props.newLinks, (d: any) => d.source.id + "-" + d.target.id)
         .enter();
 
-
       link.append("line")
         .attr("class", "links")
         .attr("stroke", "grey")
@@ -209,7 +215,9 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
         .attr("source", function (d: any) { newNodesID.add(d.source.id); return d.source.id })
         .attr("target", function (d: any) { newNodesID.add(d.target.id); return d.target.id })
         .on("click", function (this: any, e: EventTarget, d: SimulationLink) {
-          removeThisLink(this)
+          //Si on click dessus ca supprime le lien 
+          //Fonction supprimé pour le moment
+          //removeThisLink(this)
         });
     }
 
@@ -236,7 +244,8 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
         .on('click', function (this: any, e: any, d: SimulationNode) {
           if (e.ctrlKey) return
           else if (e.shiftKey) return;
-          else removeThisNode(this);
+          //Si on click sur le lien il est supprimé 
+          else /*removeThisNode(this)*/;
         });
 
       // Add a title to each node with his name and his id
@@ -247,15 +256,14 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
         })
     }
 
-
+    //Keep the previous props in memory
     this.prevPropsNewLink = this.props.newLinks;
     this.prevPropsNewnode = this.props.newNodes;
 
+    //Fait apparaitre tous les noeuds au dessus 
     svgContext.selectAll<SVGCircleElement, SimulationNode>('circle.nodes')
       .filter((d: SimulationNode) => newNodesID.has(d.id))
       .raise();
-
-
 
 
     // Define drag behaviour  
@@ -305,21 +313,20 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
         .restart();
     }
 
-    function removeThisNode(svgNode: any) {
-      //remove the node directly in the svg 
-      svgNode.remove();
-      //and then remove link inside svg
-      svgContext.selectAll("line.links").filter((link: any) => ((link.source.id === svgNode.id) || (link.target.id === svgNode.id))).remove();
-      reloadSimulation()
-    }
+    // function removeThisNode(svgNode: any) {
+    //   //remove the node directly in the svg 
+    //   svgNode.remove();
+    //   //and then remove link inside svg
+    //   svgContext.selectAll("line.links").filter((link: any) => ((link.source.id === svgNode.id) || (link.target.id === svgNode.id))).remove();
+    //   reloadSimulation()
+    // }
 
-    function removeThisLink(svgLink: any) {
-      //remove the link directly in the svg 
-      svgLink.remove();
-      // reattribute 
-      reloadSimulation()
-    }
-
+    // function removeThisLink(svgLink: any) {
+    //   //remove the link directly in the svg 
+    //   svgLink.remove();
+    //   // reattribute 
+    //   reloadSimulation()
+    // }
 
     //Add function to detect contact between nodes and create link
     const incontact = (c: SimulationNode): SimulationNode | null => {
@@ -395,9 +402,22 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
       this.handleClose();
     }
 
+
     const ifnode = () => {
-      if (node) return <MenuItem onClick={rmnodefromContextMenu}> Remove Node {node.id}</MenuItem>;
+      if (node) return <MenuItem onClick={rmnodefromContextMenu}> Remove node #{node.id}</MenuItem>;
       else return;
+    }
+
+    const removeSelectedNode = (event: React.MouseEvent) => {
+      console.log("remove selected nodes");
+
+      const seletectNodes: any[] = [];
+      d3.select(this.ref)
+        .selectAll<SVGCircleElement, SimulationNode>('circle.onfocus')
+        .each((d: any) => seletectNodes.push(d))
+      console.log(seletectNodes);
+      this.setState({ nodeToRemove: seletectNodes })
+      this.handleClose();
     }
 
     const pasteSelectedNode = (e: React.MouseEvent) => {
@@ -436,14 +456,18 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
         .attr("r", this.nodeRadius);
       this.handleClose();
     };
+
+    // Si des noeuds sont selectionnés
     const ifSelectedNode = () => {
-      const _ = d3.select(this.ref).selectAll('circle.onfocus').size();
-      if (_ > 0) {
-        return <MenuItem onClick={(e) => { pasteSelectedNode(e) }}> Paste {_} selected nodes</MenuItem>;
+      const numberCircleSelected = d3.select(this.ref).selectAll('circle.onfocus').size();
+      if (numberCircleSelected > 0) {
+        return <><MenuItem onClick={(e) => { removeSelectedNode(e); }}> Remove {numberCircleSelected} selected nodes</MenuItem><MenuItem onClick={(e) => { pasteSelectedNode(e); }}> Paste {numberCircleSelected} selected nodes</MenuItem></>;
       } else {
         return null;
       }
     }
+
+
     return (
       <div className="svg"
         onContextMenu={this.handleContextMenu}
@@ -459,8 +483,6 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
           anchorPosition={{ top: this.state.y + 2, left: this.state.x + 2 }} >
           {ifnode()}
           {ifSelectedNode()}
-          <MenuItem onClick={this.handleClose}>Smart feature 2</MenuItem>
-          <MenuItem onClick={this.handleClose}>Super feature</MenuItem>
           <MenuItem onClick={this.handleClose}>Awesome feature</MenuItem>
           <MenuItem onClick={this.handleClose}>Super mega idea</MenuItem>
         </Menu>
