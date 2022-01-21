@@ -47,8 +47,8 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
   nodeRadius = 10;
   mouseX = 0;
   mouseY = 0;
-  prevPropsNewnode : any = null;
-  prevPropsNewLink  : any = null;
+  prevPropsNewnode: any = null;
+  prevPropsNewLink: any = null;
 
   /* Quad tree structure
   tree =  d3.quadtree<SimulationNode>();
@@ -122,7 +122,34 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
       .on("mousemove", (e) => {
         [this.mouseX, this.mouseY] = d3.pointer(e);
       });
+
+
+
+    // Add brushing
+    const brushed = (event: any) => {
+      const selection: any = event.selection; //[[x0, y0], [x1, y1]],
+
+      console.log("brush", event);
+      if (selection) {
+        const nodeInSvg = d3.select(this.ref).selectAll("circle")
+
+        nodeInSvg
+          .filter((d: any) => ((d.x < selection[1][0]) && (d.x > selection[0][0]) && (d.y < selection[1][1]) && (d.y > selection[0][1])))
+          .attr( "class", "onfocus");
+      }
+
+
+    }
+
+    d3.select(this.ref).append("g")
+      .attr("class", "brush")
+      .call(d3.brush()
+        .on("start brush end", brushed)
+      );
+
   }
+
+
 
 
   // Define graph property
@@ -160,7 +187,7 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
         //and then remove link inside svg
         svgContext.selectAll("line.links").filter((link: any) => ((link.source.id === node.id) || (link.target.id === node.id))).remove();
       }
-      this.setState({ nodeToRemove: [] });
+      this.setState({ nodeToRemove: [], nodeClick: null });
       return;
     }
 
@@ -172,7 +199,7 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
         .data(this.props.newLinks, (d: any) => d.source.id + "-" + d.target.id)
         .enter();
 
-      
+
       link.append("line")
         .attr("class", "links")
         .attr("stroke", "grey")
@@ -214,28 +241,20 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
 
       // Add a title to each node with his name and his id
       node.append("title")
-      .text(function (d: SimulationNode) {
-        let title = d.resname + " : " + d.id;
-        return title;
-      })
+        .text(function (d: SimulationNode) {
+          let title = d.resname + " : " + d.id;
+          return title;
+        })
     }
-
-
 
 
     this.prevPropsNewLink = this.props.newLinks;
     this.prevPropsNewnode = this.props.newNodes;
 
-    // Define link with enter and the props link
+    svgContext.selectAll<SVGCircleElement, SimulationNode>('circle.nodes')
+      .filter((d: SimulationNode) => newNodesID.has(d.id))
+      .raise();
 
-    // A rajouté !!!!
-    // if (node.size() === 0) {
-    //   console.log("node.size() === 0");
-    //   // Not Cost efficient
-      svgContext.selectAll<SVGCircleElement, SimulationNode>('circle.nodes')
-        .filter((d: SimulationNode) => newNodesID.has(d.id))
-        .raise();
-    // }
 
 
 
