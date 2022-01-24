@@ -4,6 +4,7 @@ import GeneratorMenu from './GeneratorMenu';
 import PolymerViewer from './GeneratorViewer';
 import { Molecule } from './Molecule';
 import { FormState, SimulationNode, SimulationLink } from './Form'
+import { checkLink } from './checkLink';
 
 // Pour plus tard
 //https://github.com/korydondzila/React-TypeScript-D3/tree/master/src/components
@@ -17,15 +18,15 @@ interface StateSimulation {
 
 export default class GeneratorManager extends React.Component {
 
-  state : StateSimulation= {
-    nodes : [],
-    links : []
+  state: StateSimulation = {
+    nodes: [],
+    links: []
   }
 
   currentAvaibleID = 0;
   generateID = (): string => {
     this.currentAvaibleID++;
-    return  this.currentAvaibleID.toString()
+    return this.currentAvaibleID.toString()
   }
 
   addnode = (toadd: FormState): void => {
@@ -54,12 +55,14 @@ export default class GeneratorManager extends React.Component {
     this.setState({ nodes: newMolecule });
   }
 
-  addlink = (node1: any, node2: any): void => {
-    let newlinks = [{
-      "source": node1,
-      "target": node2
-    }];
-    this.setState({ links: newlinks });
+  addlink = (node1:SimulationNode, node2:SimulationNode): void => {
+    if (checkLink(node1, node2)) {
+      let newlinks = [{
+        "source": node1,
+        "target": node2
+      }];
+      this.setState({ links: newlinks });
+    }
   }
 
 
@@ -109,7 +112,7 @@ export default class GeneratorManager extends React.Component {
             <GeneratorMenu addnode={this.addnode} addlink={this.addlink} />
           </Grid>
           <Grid item xs={8}>
-            <PolymerViewer newNodes={this.state.nodes} newLinks={this.state.links} addlink={this.addlink} />
+            <PolymerViewer newNodes={this.state.nodes} newLinks={this.state.links} addlink={this.addlink} generateID={this.generateID} />
           </Grid>
         </Grid>
 

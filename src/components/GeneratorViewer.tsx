@@ -2,15 +2,14 @@ import * as React from "react";
 import * as d3 from "d3";
 import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
-import { SimulationNode, SimulationLink } from './Form'
+import { SimulationNode, SimulationLink } from './Form';
 import './GeneratorViewer.css';
-// import { SimulationLinkDatum } from "d3";
-
 
 interface propsviewer {
   newNodes: SimulationNode[];
   newLinks: SimulationLink[];
-  addlink: (link1: SimulationNode, link2: SimulationNode) => void
+  addlink: (link1: SimulationNode, link2: SimulationNode) => void;
+  generateID: () => string;
 }
 
 function hashStringToColor(str: string) {
@@ -77,13 +76,14 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
     this.drawSGV();
     /*bindCircleShiftClick*/
     this.frame.addEventListener('click', (ev: MouseEvent) => {
-      if (!ev.shiftKey) return;
+      if (!ev.ctrlKey) return;
       if (!isSVGCircleElement(ev.target)) return;
       console.log("Circle+shiftClick");
       ev.target.classList.toggle('onfocus');
     });
-
   }
+
+
   componentDidUpdate(prevProps: propsviewer, prevStates: statecustommenu) {
     console.log("On rentre dans componentDidUpdate");
     console.log(this.props);
@@ -99,7 +99,6 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
       this.UpdateSVG()
     }
     else console.log("same state")
-
   }
 
 
@@ -122,42 +121,34 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
 
 
 
-    // Add brush property
-    const brushed = (event: any) => {
-      //Stop simulation when brush
-      this.simulation.stop();
-      //Get brush zone coord
-      const selection: any = event.selection; //[[x0, y0], [x1, y1]],
-      console.log("brush", event);
-      if (selection) {
-        //select all node inside brush zone 
-        d3.select(this.ref).selectAll("circle")
-          .filter((d: any) => ((d.x < selection[1][0]) && (d.x > selection[0][0]) && (d.y < selection[1][1]) && (d.y > selection[0][1])))
-          .attr("class", "onfocus");
-        //select all link inside brush zone 
-
-        //Faire verif :
-        //Si 2 noeuds sont selectionnés le lien qui les unis est selectionné par defaut 
-        // d3.select(this.ref).selectAll("line")
-        //   .filter((d: any) => ((d.x < selection[1][0]) && (d.x > selection[0][0]) && (d.y < selection[1][1]) && (d.y > selection[0][1])))
-        //   .attr("class", "onfocus");
-      }
-    }
-
-    //How to close brush zone after ?????????????????????????????
-    const brushEnd = (event: any) => {
-      //d3.select(this.ref).select(".brush").selectChildren().attr("style" , "display: none");
-    }
-
     d3.select(this.ref).append("g")
       .attr("class", "brush")
       .call(d3.brush()
-        .on("start brush", brushed)
-        .on("end", brushEnd)
+        .on("start brush", (event: any) => {
+          this.simulation.stop(); //Stop simulation when brush
+          const selection: any = event.selection; //Get brush zone coord [[x0, y0], [x1, y1]],
+          console.log("brush", event);
+          if (selection) {
+            //select all node inside brush zone 
+            d3.select(this.ref).selectAll("circle")
+              .filter((d: any) => ((d.x < selection[1][0]) && (d.x > selection[0][0]) && (d.y < selection[1][1]) && (d.y > selection[0][1])))
+              .attr("class", "onfocus");
+            //select all link inside brush zone 
+
+            //Faire verif :
+            //Si 2 noeuds sont selectionnés le lien qui les unis est selectionné par defaut 
+            // d3.select(this.ref).selectAll("line")
+            //   .filter((d: any) => ((d.x < selection[1][0]) && (d.x > selection[0][0]) && (d.y < selection[1][1]) && (d.y > selection[0][1])))
+            //   .attr("class", "onfocus");
+            // Si un noeud sort de la zone enlever le onfocus
+          }
+        })
+        .on("end", (event: any) => {
+          //d3.select(this.ref).select(".brush").selectChildren().attr("style" , "display: none");
+        })
       );
 
   }
-
 
   // Define graph property
   UpdateSVG = () => {
@@ -169,9 +160,9 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
       console.log("Reload simulation with new svg property");
 
       const snodes: SimulationNode[] = []
-      svgContext.selectAll("circle.nodes").each((d: any) => snodes.push(d))
+      svgContext.selectAll("circle").each((d: any) => snodes.push(d))
       const slinks: SimulationLink[] = [];
-      svgContext.selectAll("line.links").each((d: any) => slinks.push(d))
+      svgContext.selectAll("line").each((d: any) => slinks.push(d))
 
       this.simulation.stop()
       this.simulation.nodes(snodes)
@@ -187,12 +178,11 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
     //Verifier si on doit supprimer des trucs !!! 
     if (this.state.nodeToRemove.length > 0) {
       console.log("On veut supprimer ca : ", this.state.nodeToRemove);
-      var nodeToRemovecopy = [...this.state.nodeToRemove];
-      for (const node of nodeToRemovecopy) {
+      for (const node of this.state.nodeToRemove) {
         console.log("on entre dans la boucle et on supprime ca :", node);
-        svgContext.selectAll("circle").filter((d: any) => (d.id === node.id)).remove();
+        svgContext.selectAll<SVGCircleElement, SimulationNode>("circle").filter((d: SimulationNode) => (d.id === node.id)).remove();
         //and then remove link inside svg
-        svgContext.selectAll("line.links").filter((link: any) => ((link.source.id === node.id) || (link.target.id === node.id))).remove();
+        svgContext.selectAll("line").filter((link: any) => ((link.source.id === node.id) || (link.target.id === node.id))).remove();
       }
       this.setState({ nodeToRemove: [], nodeClick: null });
       return;
@@ -202,7 +192,7 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
     const newNodesID = new Set();
     // Verifier si on doit bien ajouter des props ou si c'est deja fait 
     if (this.prevPropsNewLink !== this.props.newLinks) {
-      const link = svgContext.selectAll("line.links")
+      const link = svgContext.selectAll("line")
         .data(this.props.newLinks, (d: any) => d.source.id + "-" + d.target.id)
         .enter();
 
@@ -224,7 +214,7 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
 
     // Si des news props apparaissent on ajoute les noeuds !!!
     if (this.prevPropsNewnode !== this.props.newNodes) {
-      const node = svgContext.selectAll("circle.nodes")
+      const node = svgContext.selectAll("circle")
         .data(this.props.newNodes, (d: any) => d.id)
         .enter();
 
@@ -248,6 +238,7 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
           else /*removeThisNode(this)*/;
         });
 
+      //Need to be attach with a g node
       // Add a title to each node with his name and his id
       node.append("title")
         .text(function (d: SimulationNode) {
@@ -261,7 +252,7 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
     this.prevPropsNewnode = this.props.newNodes;
 
     //Fait apparaitre tous les noeuds au dessus 
-    svgContext.selectAll<SVGCircleElement, SimulationNode>('circle.nodes')
+    svgContext.selectAll<SVGCircleElement, SimulationNode>('circle')
       .filter((d: SimulationNode) => newNodesID.has(d.id))
       .raise();
 
@@ -303,8 +294,10 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
       d.fy = null;
 
       const closest = incontact(d)
-      if (closest)
+      if (closest){
         addlink(d, closest);
+      }
+        
 
       self.simulation.velocityDecay(0.3)
         .alphaDecay(0.0228/*1 - Math.pow(0.001, 1 / self.simulation.alphaMin())*/)
@@ -348,7 +341,7 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
       self.frameCount++;
       // console.log(`Tick num ${self.frameCount} alpha:${self.simulation.alpha()} alpha_min:${self.simulation.alphaMin()} alpha_decay:${self.simulation.alphaDecay()}`);
       console.log("Tick");
-      svgContext.selectAll("line.links")
+      svgContext.selectAll("line")
         .attr("x1", function (d: any) {
           return d.source.x;
         })
@@ -362,7 +355,7 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
           return d.target.y;
         });
 
-      svgContext.selectAll("circle.nodes")
+      svgContext.selectAll("circle")
         .attr("cx", function (d: any) {
           return d.x;
         })
@@ -376,7 +369,8 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
   }
 
   handleClose = () => {
-    this.setState({ show: false });
+    this.setState({ show: false, nodeClick: null })
+    d3.select(this.ref).selectAll<SVGCircleElement, SimulationNode>('circle.onfocus').attr("class", "nodes");
   };
 
   handleContextMenu = (event: React.MouseEvent) => {
@@ -420,6 +414,43 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
       this.handleClose();
     }
 
+    // const pasteSelectedNode = (e: React.MouseEvent) => {
+    //   console.log("OLE!!!!")
+    //   const [x, y] = [this.mouseX, this.mouseY]; // Target translation point
+    //   const ghostNodes: Record<string, string | number>[] = [];
+    //   d3.select(this.ref).selectAll<SVGCircleElement, SimulationNode>('circle.onfocus')
+    //     .each((d: SimulationNode) => {
+    //       ghostNodes.push({
+    //         x: d.x ?? 0,
+    //         y: d.y ?? 0,
+    //         gid: d.id
+    //       })
+    //     });
+    //   const [x0, y0] = ghostNodes.reduce<[number, number]>((previousValue, currentDatum, i, arr) => {
+    //     const _x = previousValue[0] + (currentDatum.x as number);
+    //     const _y = previousValue[1] + (currentDatum.y as number);
+    //     return i === arr.length - 1 ? [_x / arr.length, _y / arr.length] : [_x, _y];
+    //   }, [0, 0])
+
+    //   console.log("Selection barycenter is " + x0, y0);
+    //   console.log("Mouse pointer is " + x, y);
+
+    //   const [tx, ty] = [x - x0, y - y0];
+
+    //   console.log("Translation V  is " + tx, ty);
+
+    //   //Bof 
+    //   d3.select(this.ref).selectAll('g.ghostSel').remove();
+    //   const gSel = d3.select(this.ref).append('g').attr('class', 'ghostSel');
+    //   gSel.selectAll('.ghostNode').data(ghostNodes).enter().append("circle")
+    //     .attr('class', 'ghostNode')
+    //     .attr('cx', (d) => (d.x as number) + tx)
+    //     .attr('cy', (d) => (d.y as number) + ty)
+    //     .style("fill", "gray")
+    //     .attr("r", this.nodeRadius);
+    //   this.handleClose();
+    // };
+
     const pasteSelectedNode = (e: React.MouseEvent) => {
       console.log("OLE!!!!")
       const [x, y] = [this.mouseX, this.mouseY]; // Target translation point
@@ -429,7 +460,9 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
           ghostNodes.push({
             x: d.x ?? 0,
             y: d.y ?? 0,
-            gid: d.id
+            oldID: d.id,
+            resname: d.resname,
+            newID: this.props.generateID(),
           })
         });
       const [x0, y0] = ghostNodes.reduce<[number, number]>((previousValue, currentDatum, i, arr) => {
@@ -438,22 +471,24 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
         return i === arr.length - 1 ? [_x / arr.length, _y / arr.length] : [_x, _y];
       }, [0, 0])
 
-      console.log("Selection barycenter is " + x0, y0);
-      console.log("Mouse pointer is " + x, y);
 
       const [tx, ty] = [x - x0, y - y0];
 
-      console.log("Translation V  is " + tx, ty);
+      const node = d3.select(this.ref).selectAll("circle")
+        .data(ghostNodes, (d: any) => d.newID)
+        .enter();
 
-      //Bof 
-      d3.select(this.ref).selectAll('g.ghostSel').remove();
-      const gSel = d3.select(this.ref).append('g').attr('class', 'ghostSel');
-      gSel.selectAll('.ghostNode').data(ghostNodes).enter().append("circle")
-        .attr('class', 'ghostNode')
+      // Define entering nodes     
+      node.append('circle')
+        .attr("class", "nodes")
+        .attr("r", this.nodeRadius)
+        .attr("fill", function (d: any) { return hashStringToColor(d.resname) })
+        .attr('stroke', "pink")
+        .attr("stroke-width", "2")
         .attr('cx', (d) => (d.x as number) + tx)
         .attr('cy', (d) => (d.y as number) + ty)
-        .style("fill", "gray")
-        .attr("r", this.nodeRadius);
+        .attr("id", function (d: any) { return d.newID });
+
       this.handleClose();
     };
 

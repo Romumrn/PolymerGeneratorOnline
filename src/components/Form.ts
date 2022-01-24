@@ -9,11 +9,12 @@ export interface FormState {
 export interface SimulationNode extends SimulationNodeDatum {
   resname : string,
   seqid : number,
+  links? : string[],
   id: number|string
   x? : number,
   y? : number,
   fx? : number|null,
-  fy? : number|null
+  fy? : number|null,
 }
 
 export interface SimulationLink extends SimulationNodeDatum{
