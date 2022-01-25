@@ -4,6 +4,8 @@ import TextField from "@mui/material/TextField";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
 import InputLabel from "@mui/material/InputLabel";
+import Grain from "@mui/icons-material/Grain";
+import Insights from "@mui/icons-material/Insights";
 import DataForm from '../data/DataForm.json';
 import { FormState } from './Form'
 
@@ -22,7 +24,7 @@ export default class GeneratorMenu extends React.Component<propsmenu, GeneratorM
   }
 
   defaultValueForcefield: string = "martini3";
-  defaultValueMolecule: string = this.GetMolFField(DataForm , this.defaultValueForcefield )[0];
+  defaultValueMolecule: string = this.GetMolFField(DataForm, this.defaultValueForcefield)[0];
 
   constructor(props: propsmenu) {
     // Required step: always call the parent class' constructor
@@ -38,16 +40,29 @@ export default class GeneratorMenu extends React.Component<propsmenu, GeneratorM
     }
   }
 
-
-
-  CheckNewMolecule( ): void {
-    if( this.state.forcefield == null){
-      alert( "Field Forcefield null")
+  explosion(): void {
+    console.log("Boom");
+    if (this.state.forcefield == null) {
+      alert("Field Forcefield null")
     }
-    else if( this.state.moleculeToAdd == null){
-      alert( "Field Molecule null")
+    else if (this.state.moleculeToAdd == null) {
+      alert("Field Molecule null")
     }
-    else{
+    else {
+
+      this.props.addnode({ forcefield: this.state.forcefield, moleculeToAdd: this.state.moleculeToAdd, numberToAdd: 1000 })
+
+    }
+  }
+
+  CheckNewMolecule(): void {
+    if (this.state.forcefield == null) {
+      alert("Field Forcefield null")
+    }
+    else if (this.state.moleculeToAdd == null) {
+      alert("Field Molecule null")
+    }
+    else {
       this.props.addnode(this.state)
     }
   }
@@ -112,6 +127,7 @@ export default class GeneratorMenu extends React.Component<propsmenu, GeneratorM
           />
 
           <Button
+            endIcon={<Grain />}
             id="addmol"
             variant="contained"
             onClick={() => this.CheckNewMolecule()}>
@@ -138,9 +154,10 @@ export default class GeneratorMenu extends React.Component<propsmenu, GeneratorM
           />
 
           <Button
+            endIcon={<Insights />}
             id="addlink"
             variant="contained"
-            onClick={() => this.CheckNewLink( this.state.id1, this.state.id2)}>
+            onClick={() => this.CheckNewLink(this.state.id1, this.state.id2)}>
             Add link
           </Button>
         </div>
@@ -182,9 +199,10 @@ export default class GeneratorMenu extends React.Component<propsmenu, GeneratorM
             <li>Remove : click on a node or a link</li>
             <li>Then download your polymer in json</li>
           </ul>
-          <button type="submit" name="download" id="download">
-            Json download
-          </button>
+
+          <Button id="explosion" variant="contained" color="error" endIcon={<Grain />} onClick={() => this.explosion()}>
+            Boom
+          </Button>
 
         </form>
       </div>

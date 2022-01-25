@@ -70,22 +70,22 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
 
   componentDidMount() {
 
-    const isSVGCircleElement = (targetElement: any): targetElement is SVGCircleElement =>
-      targetElement.classList.contains("nodes");
+    // const isSVGCircleElement = (targetElement: any): targetElement is SVGCircleElement =>
+    //   targetElement.classList.contains("nodes");
 
     this.drawSGV();
     /*bindCircleShiftClick*/
-    this.frame.addEventListener('click', (ev: MouseEvent) => {
-      if (!ev.ctrlKey) return;
-      if (!isSVGCircleElement(ev.target)) return;
-      console.log("Circle+shiftClick");
-      ev.target.classList.toggle('onfocus');
-    });
+    // this.frame.addEventListener('click', (ev: MouseEvent) => {
+    //   if (!ev.ctrlKey) return;
+    //   if (!isSVGCircleElement(ev.target)) return;
+    //   console.log("Circle+shiftClick");
+    //   ev.target.classList.toggle('onfocus');
+    // });
   }
 
 
   componentDidUpdate(prevProps: propsviewer, prevStates: statecustommenu) {
-    console.log("On rentre dans componentDidUpdate");
+    console.log("componentDidUpdate");
     console.log(this.props);
     console.log(this.state)
     //Check state and props 
@@ -102,10 +102,10 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
   }
 
 
-  handleKey = (e: KeyboardEvent) => {
-    console.log("handling key")
-    console.log(e.code);
-  }
+  // handleKey = (e: KeyboardEvent) => {
+  //   console.log("handling key")
+  //   console.log(e.code);
+  // }
 
   //Draw svg frame
   drawSGV = () => {
@@ -118,7 +118,6 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
       .on("mousemove", (e) => {
         [this.mouseX, this.mouseY] = d3.pointer(e);
       });
-
 
 
     d3.select(this.ref).append("g")
@@ -144,7 +143,8 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
           }
         })
         .on("end", (event: any) => {
-          //d3.select(this.ref).select(".brush").selectChildren().attr("style" , "display: none");
+          // Ne fonctionne pas ???????????????????????????????????,
+          d3.brush().move(d3.selectAll("brush"), null, undefined)
         })
       );
 
@@ -179,6 +179,13 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
     if (this.state.nodeToRemove.length > 0) {
       console.log("On veut supprimer ca : ", this.state.nodeToRemove);
       for (const node of this.state.nodeToRemove) {
+        //remove link in object node
+        if (node.links !== undefined) {
+          for (let linkednode of node.links) {
+            //remove in non selected node link with selected nodes
+            linkednode.links = linkednode.links!.filter((nodeToRM: SimulationNode) => !this.state.nodeToRemove.includes(nodeToRM));
+          }
+        }
         console.log("on entre dans la boucle et on supprime ca :", node);
         svgContext.selectAll<SVGCircleElement, SimulationNode>("circle").filter((d: SimulationNode) => (d.id === node.id)).remove();
         //and then remove link inside svg
@@ -232,10 +239,12 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
           .on("end", dragended)
         )
         .on('click', function (this: any, e: any, d: SimulationNode) {
-          if (e.ctrlKey) return
+          if (e.ctrlKey) {
+            d3.select(this).attr("class", "onfocus")
+          }
           else if (e.shiftKey) return;
           //Si on click sur le lien il est supprimé 
-          else /*removeThisNode(this)*/;
+          else console.log(d);
         });
 
       //Need to be attach with a g node
@@ -294,10 +303,9 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
       d.fy = null;
 
       const closest = incontact(d)
-      if (closest){
+      if (closest) {
         addlink(d, closest);
       }
-        
 
       self.simulation.velocityDecay(0.3)
         .alphaDecay(0.0228/*1 - Math.pow(0.001, 1 / self.simulation.alphaMin())*/)
@@ -305,21 +313,6 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
         .alphaTarget(0)
         .restart();
     }
-
-    // function removeThisNode(svgNode: any) {
-    //   //remove the node directly in the svg 
-    //   svgNode.remove();
-    //   //and then remove link inside svg
-    //   svgContext.selectAll("line.links").filter((link: any) => ((link.source.id === svgNode.id) || (link.target.id === svgNode.id))).remove();
-    //   reloadSimulation()
-    // }
-
-    // function removeThisLink(svgLink: any) {
-    //   //remove the link directly in the svg 
-    //   svgLink.remove();
-    //   // reattribute 
-    //   reloadSimulation()
-    // }
 
     //Add function to detect contact between nodes and create link
     const incontact = (c: SimulationNode): SimulationNode | null => {
@@ -370,8 +363,66 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
 
   handleClose = () => {
     this.setState({ show: false, nodeClick: null })
-    d3.select(this.ref).selectAll<SVGCircleElement, SimulationNode>('circle.onfocus').attr("class", "nodes");
+
   };
+
+  // const downloadFile = ({ data, fileName, fileType }) => {
+  //   const blob = new Blob([data], { type: fileType });
+
+  //   const a = document.createElement("a");
+  //   a.download = fileName;
+  //   a.href = window.URL.createObjectURL(blob);
+  //   const clickEvt = new MouseEvent("click", {
+  //     view: window,
+  //     bubbles: true,
+  //     cancelable: true,
+  //   });
+  //   a.dispatchEvent(clickEvt);
+  //   a.remove();
+  // };
+
+
+  // const exportToJson = e => {
+  //   e.preventDefault();
+  //   downloadFile({
+  //     data: JSON.stringify(usersData.users),
+  //     fileName: "users.json",
+  //     fileType: "text/json",
+  //   });
+  // };
+
+  exportJson = (event: React.MouseEvent) => {
+    console.log("Download json ! ");
+    const myRawNodes = this.simulation.nodes();
+    //   {
+    //     "resname": "glucose",
+    //     "seqid": 0,
+    //     "id": 0
+    //  }
+    const myNodes = myRawNodes.map(obj => {
+      return {
+              "resname": obj.resname,
+              "seqid": 0,
+              "id": obj.id
+           }
+      });
+
+    console.log( myNodes)
+    const myJSON = JSON.stringify(myNodes);
+    const blob = new Blob([myJSON], { type: "text" });
+    const a = document.createElement("a");
+    a.download = "file.json";
+    a.href = window.URL.createObjectURL(blob);
+    const clickEvt = new MouseEvent("click", {
+      view: window,
+      bubbles: true,
+      cancelable: true,
+    });
+    a.dispatchEvent(clickEvt);
+    a.remove();
+
+    this.handleClose();
+  }
 
   handleContextMenu = (event: React.MouseEvent) => {
     console.log("Custom menu");
@@ -396,63 +447,23 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
       this.handleClose();
     }
 
-
-    const ifnode = () => {
-      if (node) return <MenuItem onClick={rmnodefromContextMenu}> Remove node #{node.id}</MenuItem>;
-      else return;
-    }
-
     const removeSelectedNode = (event: React.MouseEvent) => {
       console.log("remove selected nodes");
-
-      const seletectNodes: any[] = [];
+      const seletectNodes: SimulationNode[] = [];
       d3.select(this.ref)
         .selectAll<SVGCircleElement, SimulationNode>('circle.onfocus')
-        .each((d: any) => seletectNodes.push(d))
-      console.log(seletectNodes);
+        .each((d: SimulationNode) => seletectNodes.push(d))
       this.setState({ nodeToRemove: seletectNodes })
       this.handleClose();
     }
 
-    // const pasteSelectedNode = (e: React.MouseEvent) => {
-    //   console.log("OLE!!!!")
-    //   const [x, y] = [this.mouseX, this.mouseY]; // Target translation point
-    //   const ghostNodes: Record<string, string | number>[] = [];
-    //   d3.select(this.ref).selectAll<SVGCircleElement, SimulationNode>('circle.onfocus')
-    //     .each((d: SimulationNode) => {
-    //       ghostNodes.push({
-    //         x: d.x ?? 0,
-    //         y: d.y ?? 0,
-    //         gid: d.id
-    //       })
-    //     });
-    //   const [x0, y0] = ghostNodes.reduce<[number, number]>((previousValue, currentDatum, i, arr) => {
-    //     const _x = previousValue[0] + (currentDatum.x as number);
-    //     const _y = previousValue[1] + (currentDatum.y as number);
-    //     return i === arr.length - 1 ? [_x / arr.length, _y / arr.length] : [_x, _y];
-    //   }, [0, 0])
-
-    //   console.log("Selection barycenter is " + x0, y0);
-    //   console.log("Mouse pointer is " + x, y);
-
-    //   const [tx, ty] = [x - x0, y - y0];
-
-    //   console.log("Translation V  is " + tx, ty);
-
-    //   //Bof 
-    //   d3.select(this.ref).selectAll('g.ghostSel').remove();
-    //   const gSel = d3.select(this.ref).append('g').attr('class', 'ghostSel');
-    //   gSel.selectAll('.ghostNode').data(ghostNodes).enter().append("circle")
-    //     .attr('class', 'ghostNode')
-    //     .attr('cx', (d) => (d.x as number) + tx)
-    //     .attr('cy', (d) => (d.y as number) + ty)
-    //     .style("fill", "gray")
-    //     .attr("r", this.nodeRadius);
-    //   this.handleClose();
-    // };
+    const ifnode = () => {
+      if (node) return <MenuItem onClick={rmnodefromContextMenu}>Remove node #{node.id}</MenuItem>;
+      else return;
+    }
 
     const pasteSelectedNode = (e: React.MouseEvent) => {
-      console.log("OLE!!!!")
+      console.log("pasteSelectedNode")
       const [x, y] = [this.mouseX, this.mouseY]; // Target translation point
       const ghostNodes: Record<string, string | number>[] = [];
       d3.select(this.ref).selectAll<SVGCircleElement, SimulationNode>('circle.onfocus')
@@ -496,7 +507,10 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
     const ifSelectedNode = () => {
       const numberCircleSelected = d3.select(this.ref).selectAll('circle.onfocus').size();
       if (numberCircleSelected > 0) {
-        return <><MenuItem onClick={(e) => { removeSelectedNode(e); }}> Remove {numberCircleSelected} selected nodes</MenuItem><MenuItem onClick={(e) => { pasteSelectedNode(e); }}> Paste {numberCircleSelected} selected nodes</MenuItem></>;
+        return <>
+          <MenuItem onClick={(e) => { removeSelectedNode(e); }}> Remove {numberCircleSelected} selected nodes</MenuItem>
+          <MenuItem onClick={(e) => { pasteSelectedNode(e); }}> Paste {numberCircleSelected} selected nodes</MenuItem>
+          <MenuItem onClick={() => { d3.select(this.ref).selectAll<SVGCircleElement, SimulationNode>('circle.onfocus').attr("class", "nodes"); this.handleClose(); }}>Unselected</MenuItem> </>;
       } else {
         return null;
       }
@@ -518,7 +532,7 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
           anchorPosition={{ top: this.state.y + 2, left: this.state.x + 2 }} >
           {ifnode()}
           {ifSelectedNode()}
-          <MenuItem onClick={this.handleClose}>Awesome feature</MenuItem>
+          <MenuItem onClick={this.exportJson}>Download Json</MenuItem>
           <MenuItem onClick={this.handleClose}>Super mega idea</MenuItem>
         </Menu>
 

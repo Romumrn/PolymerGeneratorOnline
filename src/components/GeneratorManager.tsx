@@ -2,7 +2,6 @@ import { Grid } from "@mui/material";
 import * as React from "react";
 import GeneratorMenu from './GeneratorMenu';
 import PolymerViewer from './GeneratorViewer';
-import { Molecule } from './Molecule';
 import { FormState, SimulationNode, SimulationLink } from './Form'
 import { checkLink } from './checkLink';
 
@@ -30,7 +29,7 @@ export default class GeneratorManager extends React.Component {
   }
 
   addnode = (toadd: FormState): void => {
-    const newMolecule: Molecule[] = [];
+    const newMolecule: SimulationNode[] = [];
     let newlinks = [];
     // convert to node objt et injecte dans la list
     for (let i = 0; i < toadd.numberToAdd; i++) {
@@ -47,6 +46,11 @@ export default class GeneratorManager extends React.Component {
           "source": newMolecule[i - 1],
           "target": newMolecule[i]
         });
+        if (newMolecule[i - 1].links) newMolecule[i - 1].links!.push(newMolecule[i]);
+        else newMolecule[i - 1].links = [newMolecule[i]];
+
+        if (newMolecule[i].links) newMolecule[i].links!.push(newMolecule[i - 1]);
+        else newMolecule[i].links = [newMolecule[i - 1]];
         // add to state
       }
 
@@ -55,12 +59,18 @@ export default class GeneratorManager extends React.Component {
     this.setState({ nodes: newMolecule });
   }
 
-  addlink = (node1:SimulationNode, node2:SimulationNode): void => {
+  addlink = (node1: SimulationNode, node2: SimulationNode): void => {
     if (checkLink(node1, node2)) {
       let newlinks = [{
         "source": node1,
         "target": node2
       }];
+      if (node1.links) node1.links.push(node2);
+      else node1.links = [node2];
+
+      if (node2.links) node2.links.push(node1);
+      else node2.links = [node1];
+
       this.setState({ links: newlinks });
     }
   }
