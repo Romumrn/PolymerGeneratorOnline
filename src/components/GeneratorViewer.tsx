@@ -424,12 +424,16 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
     }
 
     const selectConnexeNode = () => {
+      //clean the selected nodes
+      d3.select(this.ref)
+        .selectAll<SVGCircleElement, SimulationNode>('circle.onfocus')
+        .attr("class", "nodes");
+
       // Create a list and add our initial node in it
       let s = [];
       let mynodedata: any;
       mynodedata = d3.select(node).data()[0];
       s.push(mynodedata);
-
 
       // Mark the first node as explored
       let explored: any[] = [];
@@ -438,8 +442,7 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
       let connexeNodesId = new Set();
       connexeNodesId.add(mynodedata.id);
 
-      //Chek si le noed n'est pas connecter aux autres 
-
+      //Chek si le noeud n'est pas connecter aux autres 
       if (mynodedata.links === undefined) {
         connexeNodesId.add(mynodedata.id);
       }
@@ -458,10 +461,43 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
         }
       }
 
+      //Transform selected point class onfocus
       d3.select(this.ref)
         .selectAll<SVGCircleElement, SimulationNode>('circle')
         .filter((d: SimulationNode) => connexeNodesId.has(d.id))
         .attr("class", "onfocus");
+
+      let selectedNodesCoords: [number, number][] = [];
+      d3.select(this.ref)
+        .selectAll<SVGCircleElement, SimulationNode>('circle.onfocus')
+        .each((d: SimulationNode) => selectedNodesCoords.push([d.x!, d.y!]));
+
+      // 
+
+      // d3.select(this.ref)
+      //   .append("polygon")
+      //   .attr("points", hull!.toString())
+      //   .attr("fill", "lightgreen")
+      //   .attr("stroke", "green")
+      //   .attr("strokeWidth", "50")
+      //   .style("opacity", 0.2);
+
+      let hull = d3.polygonHull(selectedNodesCoords);
+      //let hullArea = d3.polygonArea(hull);
+
+      let teamArea = d3.select(this.ref).selectAll(".teamHull").data([hull]);
+
+
+      teamArea.enter().append("path")
+        .attr("class", "teamHull")
+        .attr("d", (d) => "M" + d!.join("L") + "Z")
+        .attr("fill", "lightgreen")
+        .attr("stroke", "lightgreen")
+        .attr("stroke-width", "40")
+        .attr("stroke-location", "outside")
+        .attr("stroke-linejoin", "round")
+        .style("opacity", 0.2);
+
       this.handleClose();
     }
 
@@ -559,7 +595,7 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
           <MenuItem onClick={this.handleClose}>Super mega idea</MenuItem>
         </Menu>
 
-      </div>);
+      </div >);
   }
 
 }
