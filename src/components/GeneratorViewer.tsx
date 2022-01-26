@@ -5,6 +5,7 @@ import MenuItem from '@mui/material/MenuItem';
 import { SimulationNode, SimulationLink } from './Form';
 import './GeneratorViewer.css';
 
+
 interface propsviewer {
   newNodes: SimulationNode[];
   newLinks: SimulationLink[];
@@ -366,30 +367,6 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
 
   };
 
-  // const downloadFile = ({ data, fileName, fileType }) => {
-  //   const blob = new Blob([data], { type: fileType });
-
-  //   const a = document.createElement("a");
-  //   a.download = fileName;
-  //   a.href = window.URL.createObjectURL(blob);
-  //   const clickEvt = new MouseEvent("click", {
-  //     view: window,
-  //     bubbles: true,
-  //     cancelable: true,
-  //   });
-  //   a.dispatchEvent(clickEvt);
-  //   a.remove();
-  // };
-
-
-  // const exportToJson = e => {
-  //   e.preventDefault();
-  //   downloadFile({
-  //     data: JSON.stringify(usersData.users),
-  //     fileName: "users.json",
-  //     fileType: "text/json",
-  //   });
-  // };
 
   exportJson = (event: React.MouseEvent) => {
     console.log("Download json ! ");
@@ -401,13 +378,13 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
     //  }
     const myNodes = myRawNodes.map(obj => {
       return {
-              "resname": obj.resname,
-              "seqid": 0,
-              "id": obj.id
-           }
-      });
+        "resname": obj.resname,
+        "seqid": 0,
+        "id": obj.id
+      }
+    });
 
-    console.log( myNodes)
+    console.log(myNodes)
     const myJSON = JSON.stringify(myNodes);
     const blob = new Blob([myJSON], { type: "text" });
     const a = document.createElement("a");
@@ -420,7 +397,6 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
     });
     a.dispatchEvent(clickEvt);
     a.remove();
-
     this.handleClose();
   }
 
@@ -438,12 +414,54 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
 
   render() {
 
-    let node: any = this.state.nodeClick;
+    let node: SVGSVGElement = this.state.nodeClick;
 
     const rmnodefromContextMenu = (event: React.MouseEvent) => {
       console.log("rmnodefromContextMenu", node)
       this.setState({ nodeToRemove: [node] })
 
+      this.handleClose();
+    }
+
+    const selectConnexeNode = () => {
+      // Create a list and add our initial node in it
+      let s = [];
+      let mynodedata: any;
+      mynodedata = d3.select(node).data()[0];
+      s.push(mynodedata);
+
+
+      // Mark the first node as explored
+      let explored: any[] = [];
+
+      //List of id 
+      let connexeNodesId = new Set();
+      connexeNodesId.add(mynodedata.id);
+
+      //Chek si le noed n'est pas connecter aux autres 
+
+      if (mynodedata.links === undefined) {
+        connexeNodesId.add(mynodedata.id);
+      }
+      else {
+        //continue while list of linked node is not emphty 
+
+        while (s.length !== 0) {
+          let firstNode = s.shift();
+          console.log(firstNode)
+          for (let connectedNodes of firstNode.links!) {
+            s.push(connectedNodes);
+            connexeNodesId.add(connectedNodes.id);
+          }
+          explored.push(firstNode)
+          s = s.filter(val => !explored.includes(val));
+        }
+      }
+
+      d3.select(this.ref)
+        .selectAll<SVGCircleElement, SimulationNode>('circle')
+        .filter((d: SimulationNode) => connexeNodesId.has(d.id))
+        .attr("class", "onfocus");
       this.handleClose();
     }
 
@@ -458,7 +476,12 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
     }
 
     const ifnode = () => {
-      if (node) return <MenuItem onClick={rmnodefromContextMenu}>Remove node #{node.id}</MenuItem>;
+      if (node) {
+        return <>
+          <MenuItem onClick={rmnodefromContextMenu}>Remove node #{node.id}</MenuItem>
+          <MenuItem onClick={selectConnexeNode}>Select this polymers</MenuItem>
+        </>;
+      }
       else return;
     }
 
