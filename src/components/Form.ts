@@ -15,9 +15,15 @@ export interface SimulationNode extends SimulationNodeDatum {
   y? : number,
   fx? : number|null,
   fy? : number|null,
+  group? : number,
 }
 
 export interface SimulationLink extends SimulationNodeDatum{
   source: SimulationNode,
   target: SimulationNode
+}
+
+export interface SimulationGroup extends SimulationNodeDatum{
+  id : number ,
+  nodes : SimulationNode[]
 }

@@ -2,7 +2,7 @@ import * as React from "react";
 import * as d3 from "d3";
 import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
-import { SimulationNode, SimulationLink } from './Form';
+import { SimulationNode, SimulationLink, SimulationGroup } from './Form';
 import './GeneratorViewer.css';
 
 
@@ -27,8 +27,8 @@ function hashStringToColor(str: string) {
 interface statecustommenu {
   x: number,
   y: number,
-  nodeClick: any | undefined,
-  nodeToRemove: any[],
+  nodeClick: SimulationNode | undefined,
+  nodeToRemove: SimulationNode[],
   show: boolean,
 }
 
@@ -43,6 +43,7 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
   frameCount = 0
   taille = 800;
   nodeRadius = 10;
+  currentnodeRadius = 10;
   mouseX = 0;
   mouseY = 0;
   prevPropsNewnode: any = null;
@@ -64,8 +65,9 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
     .force("y", d3.forceY(this.taille / 2).strength(0.02))
     .force("link", d3.forceLink()
       .id(function (d: any) { return d.id; })
-      .distance(this.nodeRadius * 2.5)
+      .distance(this.currentnodeRadius * 2.5)
     )
+
 
   //https://reactjs.org/docs/react-component.html#componentdidupdate
 
@@ -79,7 +81,7 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
     // this.frame.addEventListener('click', (ev: MouseEvent) => {
     //   if (!ev.ctrlKey) return;
     //   if (!isSVGCircleElement(ev.target)) return;
-    //   console.log("Circle+shiftClick");
+    //   
     //   ev.target.classList.toggle('onfocus');
     // });
   }
@@ -87,19 +89,22 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
 
   componentDidUpdate(prevProps: propsviewer, prevStates: statecustommenu) {
     console.log("componentDidUpdate");
-    console.log(this.props);
-    console.log(this.state)
+
     //Check state and props 
     if ((prevProps.newNodes === this.props.newNodes) && (prevProps.newLinks === this.props.newLinks)) {
-      console.log("Same props than earlier")
     }
-    else this.UpdateSVG();
+    else {
+      console.log(this.props)
+      this.UpdateSVG();
+    }
 
     if (this.state.nodeToRemove !== prevStates.nodeToRemove) {
-      console.log("new state nodeToRemove");
+      console.log(this.state);
       this.UpdateSVG()
     }
-    else console.log("same state")
+    else {
+      console.log("same state")
+    }
   }
 
 
@@ -111,6 +116,8 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
   //Draw svg frame
   drawSGV = () => {
     console.log("Svg frame draw");
+
+
     d3.select(this.ref)
       .attr("style", "outline: thin solid grey;")
       .attr("width", this.taille)
@@ -118,7 +125,28 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
       // .each((d) => console.log("Dessiné"))
       .on("mousemove", (e) => {
         [this.mouseX, this.mouseY] = d3.pointer(e);
-      });
+      })
+      .call(d3.zoom<SVGSVGElement, unknown>().scaleExtent([0.1, 1.8]).on("zoom", (event) => {
+        const zoomValue = event.transform.k;
+        this.currentnodeRadius = this.nodeRadius * zoomValue;
+        console.log(zoomValue);
+        d3.select(this.ref).selectAll("circle")
+          .attr("r", this.currentnodeRadius)
+          .attr("stroke-width", this.currentnodeRadius / 4)
+
+        d3.select(this.ref).selectAll("line")
+          .attr("stroke-width", this.currentnodeRadius / 3)
+
+        this.simulation.force("link", d3.forceLink()
+          .distance(this.currentnodeRadius * 2.5))
+          .force("x", d3.forceX(this.taille / 2).strength(0.02 / zoomValue))
+          .force("y", d3.forceY(this.taille / 2).strength(0.02 / zoomValue))
+
+        this.UpdateSVG()
+      }));
+
+
+
 
 
     d3.select(this.ref).append("g")
@@ -127,7 +155,6 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
         .on("start brush", (event: any) => {
           this.simulation.stop(); //Stop simulation when brush
           const selection: any = event.selection; //Get brush zone coord [[x0, y0], [x1, y1]],
-          console.log("brush", event);
           if (selection) {
             //select all node inside brush zone 
             d3.select(this.ref).selectAll("circle")
@@ -158,7 +185,7 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
     const svgContext = d3.select(this.ref);
 
     const reloadSimulation = () => {
-      console.log("Reload simulation with new svg property");
+      console.log("Reload simulation");
 
       const snodes: SimulationNode[] = []
       svgContext.selectAll("circle").each((d: any) => snodes.push(d))
@@ -180,19 +207,22 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
     if (this.state.nodeToRemove.length > 0) {
       console.log("On veut supprimer ca : ", this.state.nodeToRemove);
       for (const node of this.state.nodeToRemove) {
+        console.log("on entre dans la boucle et on supprime ca :", node);
+        console.log(node.links)
         //remove link in object node
         if (node.links !== undefined) {
           for (let linkednode of node.links) {
+
+            console.log("linkednode", linkednode);
             //remove in non selected node link with selected nodes
             linkednode.links = linkednode.links!.filter((nodeToRM: SimulationNode) => !this.state.nodeToRemove.includes(nodeToRM));
           }
         }
-        console.log("on entre dans la boucle et on supprime ca :", node);
         svgContext.selectAll<SVGCircleElement, SimulationNode>("circle").filter((d: SimulationNode) => (d.id === node.id)).remove();
         //and then remove link inside svg
         svgContext.selectAll("line").filter((link: any) => ((link.source.id === node.id) || (link.target.id === node.id))).remove();
       }
-      this.setState({ nodeToRemove: [], nodeClick: null });
+      this.setState({ nodeToRemove: [], nodeClick: undefined });
       return;
     }
 
@@ -207,7 +237,7 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
       link.append("line")
         .attr("class", "links")
         .attr("stroke", "grey")
-        .attr("stroke-width", 6)
+        .attr("stroke-width", this.currentnodeRadius / 3)
         .attr("opacity", 0.5)
         .attr("stroke-linecap", "round")
         .attr("source", function (d: any) { newNodesID.add(d.source.id); return d.source.id })
@@ -229,10 +259,10 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
       // Define entering nodes     
       node.append('circle')
         .attr("class", "nodes")
-        .attr("r", this.nodeRadius)
+        .attr("r", this.currentnodeRadius)
         .attr("fill", function (d: SimulationNode) { return hashStringToColor(d.resname) })
         .attr('stroke', "grey")
-        .attr("stroke-width", "2")
+        .attr("stroke-width", this.currentnodeRadius / 4)
         .attr("id", function (d: SimulationNode) { return d.id })
         .call(d3.drag<SVGCircleElement, SimulationNode>()
           .on("start", dragstarted)
@@ -317,7 +347,7 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
 
     //Add function to detect contact between nodes and create link
     const incontact = (c: SimulationNode): SimulationNode | null => {
-      let closest: [number, SimulationNode | null] = [this.nodeRadius * 2.2, null];
+      let closest: [number, SimulationNode | null] = [this.currentnodeRadius * 2.2, null];
       self.simulation.nodes().forEach((d) => {
         if (d.id === c.id) return;
         const dist = Math.sqrt(((c.x ?? 0) - (d.x ?? 0)) * ((c.x ?? 0) - (d.x ?? 0))
@@ -330,10 +360,85 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
     };
 
 
+    // Build a list of grouped nodes instead of compute it a each iteration
+    const groups: SimulationGroup[] = [];
+
+    const svgPath = [];
+    d3.select(this.ref)
+      .selectAll('path.area')
+      .each(function () {
+        svgPath.push(this);
+      });
+
+    if (svgPath.length !== 0) {
+      for (let i = 0; i < svgPath.length; i++) {
+        let selectedNodes: SimulationNode[] = [];
+        d3.select(self.ref).selectAll("circle")
+          .filter((d: any) => (d.group === i))
+          .each((d: any) => {
+            console.log(d);
+            selectedNodes.push(d);
+          });
+        groups.push({ id: i, nodes: selectedNodes })
+      }
+    }
+
+    function updatePolymerPath() {
+      // recupere les path existant 
+      //  ensuite les nodes qui le compose avec le group 
+      //  et refaire la simulation avec les nouvelles positions 
+
+      if (groups.length !== 0) {
+        for (let group of groups) {
+          let coords: [number, number][] = [];
+          group.nodes.map((d: SimulationNode) => coords.push([d.x!, d.y!]))
+          let hull = d3.polygonHull(coords)
+
+          d3.select(self.ref)
+            .selectAll("area")
+            .data([hull])
+            .enter().append("path")
+            .attr("group", group.id)
+            .attr("class", "area")
+            .attr("d", (d) => "M" + d!.join("L") + "Z")
+        }
+      }
+
+      //Pour chaque polymere groupé on itere 
+
+      // let selectedNodesCoords: [number, number][] = [];
+      // // (malist de nodes appartenant au groupe)
+      // //   .each((d: SimulationNode) => {
+      // //     selectedNodesCoords.push([d.x!, d.y!]);
+      // //   });
+
+
+      // let hull = d3.polygonHull(selectedNodesCoords);
+
+      // d3.select(self.ref)
+      //   .selectAll("area")
+      //   .data([hull])
+      //   .enter().append("path")
+      //   .attr("group", groupeID)
+      //   .attr("class", "area")
+      //   .attr("d", (d) => "M" + d!.join("L") + "Z")
+      //   .attr("fill", "lightgreen")
+      //   .attr("stroke", "lightgreen")
+      //   .attr("stroke-width", "40")
+      //   .attr("stroke-location", "outside")
+      //   .attr("stroke-linejoin", "round")
+      //   .style("opacity", 0.2)
+      //   .on('click', function (this: any, e: any) {
+      //     console.log(this);
+      //   });
+
+      // //remonter les noeuds dans le svg
+      // listNodesD3.raise()
+    }
+
     // Define ticked with coords 
     function ticked() {
       self.frameCount++;
-      // console.log(`Tick num ${self.frameCount} alpha:${self.simulation.alpha()} alpha_min:${self.simulation.alphaMin()} alpha_decay:${self.simulation.alphaDecay()}`);
       console.log("Tick");
       svgContext.selectAll("line")
         .attr("x1", function (d: any) {
@@ -356,6 +461,8 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
         .attr("cy", function (d: any) {
           return d.y;
         });
+
+      //updatePolymerPath()
     }
 
     reloadSimulation()
@@ -363,8 +470,7 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
   }
 
   handleClose = () => {
-    this.setState({ show: false, nodeClick: null })
-
+    this.setState({ show: false, nodeClick: undefined })
   };
 
 
@@ -405,16 +511,62 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
     event.preventDefault();
     const element = document.elementFromPoint(event.clientX, event.clientY);
     if (element?.tagName === "circle") {
-      this.setState({ x: event.clientX, y: event.clientY, nodeClick: element, show: true, });
+      const nodeToRm: any = d3.select(this.ref).selectAll("circle").filter((d: any) => (d.id === element.id)).data()[0]
+      console.log(nodeToRm)
+      this.setState({ x: event.clientX, y: event.clientY, nodeClick: nodeToRm, show: true, });
     }
     else {
       this.setState({ x: event.clientX, y: event.clientY, show: true, });
     }
   };
 
+
+  currentGroupeID = 0;
+  generateGroupeID = (): number => {
+    this.currentGroupeID++;
+    return this.currentGroupeID
+  }
+
+  //list d3 qui forme le polygon autour de cette liste
+  groupPolymer = (listNodesD3: any) => {
+    const groupeID = this.generateGroupeID();
+    let selectedNodesCoords: [number, number][] = [];
+    listNodesD3
+      .each((d: SimulationNode) => {
+        selectedNodesCoords.push([d.x!, d.y!]);
+        d.group = groupeID
+      });
+
+
+    let hull = d3.polygonHull(selectedNodesCoords);
+
+    if (hull) {
+      d3.select(this.ref)
+        .selectAll("area")
+        .data([hull])
+        .enter().append("path")
+        .attr("group", groupeID)
+        .attr("class", "area")
+        .attr("d", (d) => "M" + d!.join("L") + "Z")
+        .attr("fill", "lightgreen")
+        .attr("stroke", "lightgreen")
+        .attr("stroke-width", "40")
+        .attr("stroke-location", "outside")
+        .attr("stroke-linejoin", "round")
+        .style("opacity", 0.2)
+        .on('click', function (this: any, e: any) {
+          console.log(this);
+        });
+    }
+    else alert("too small")
+
+    this.UpdateSVG()
+
+  }
+
   render() {
 
-    let node: SVGSVGElement = this.state.nodeClick;
+    let node: any = this.state.nodeClick;
 
     const rmnodefromContextMenu = (event: React.MouseEvent) => {
       console.log("rmnodefromContextMenu", node)
@@ -431,27 +583,26 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
 
       // Create a list and add our initial node in it
       let s = [];
-      let mynodedata: any;
-      mynodedata = d3.select(node).data()[0];
-      s.push(mynodedata);
+
+      s.push(node);
 
       // Mark the first node as explored
       let explored: any[] = [];
 
       //List of id 
       let connexeNodesId = new Set();
-      connexeNodesId.add(mynodedata.id);
+      connexeNodesId.add(node.id);
 
       //Chek si le noeud n'est pas connecter aux autres 
-      if (mynodedata.links === undefined) {
-        connexeNodesId.add(mynodedata.id);
+      if (node.links === undefined) {
+        connexeNodesId.add(node.id);
       }
       else {
         //continue while list of linked node is not emphty 
 
         while (s.length !== 0) {
           let firstNode = s.shift();
-          console.log(firstNode)
+          //console.log(firstNode)
           for (let connectedNodes of firstNode.links!) {
             s.push(connectedNodes);
             connexeNodesId.add(connectedNodes.id);
@@ -461,47 +612,19 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
         }
       }
 
+      console.log(node);
+
       //Transform selected point class onfocus
       d3.select(this.ref)
         .selectAll<SVGCircleElement, SimulationNode>('circle')
         .filter((d: SimulationNode) => connexeNodesId.has(d.id))
         .attr("class", "onfocus");
 
-      let selectedNodesCoords: [number, number][] = [];
-      d3.select(this.ref)
-        .selectAll<SVGCircleElement, SimulationNode>('circle.onfocus')
-        .each((d: SimulationNode) => selectedNodesCoords.push([d.x!, d.y!]));
-
-      // 
-
-      // d3.select(this.ref)
-      //   .append("polygon")
-      //   .attr("points", hull!.toString())
-      //   .attr("fill", "lightgreen")
-      //   .attr("stroke", "green")
-      //   .attr("strokeWidth", "50")
-      //   .style("opacity", 0.2);
-
-      let hull = d3.polygonHull(selectedNodesCoords);
-      //let hullArea = d3.polygonArea(hull);
-
-      let teamArea = d3.select(this.ref).selectAll(".teamHull").data([hull]);
-
-
-      teamArea.enter().append("path")
-        .attr("class", "teamHull")
-        .attr("d", (d) => "M" + d!.join("L") + "Z")
-        .attr("fill", "lightgreen")
-        .attr("stroke", "lightgreen")
-        .attr("stroke-width", "40")
-        .attr("stroke-location", "outside")
-        .attr("stroke-linejoin", "round")
-        .style("opacity", 0.2);
-
       this.handleClose();
     }
 
-    const removeSelectedNode = (event: React.MouseEvent) => {
+
+    const removeSelectedNodes = (event: React.MouseEvent) => {
       console.log("remove selected nodes");
       const seletectNodes: SimulationNode[] = [];
       d3.select(this.ref)
@@ -515,7 +638,7 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
       if (node) {
         return <>
           <MenuItem onClick={rmnodefromContextMenu}>Remove node #{node.id}</MenuItem>
-          <MenuItem onClick={selectConnexeNode}>Select this polymers</MenuItem>
+          <MenuItem onClick={selectConnexeNode}>Select this polymer</MenuItem>
         </>;
       }
       else return;
@@ -551,7 +674,7 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
       // Define entering nodes     
       node.append('circle')
         .attr("class", "nodes")
-        .attr("r", this.nodeRadius)
+        .attr("r", this.currentnodeRadius)
         .attr("fill", function (d: any) { return hashStringToColor(d.resname) })
         .attr('stroke', "pink")
         .attr("stroke-width", "2")
@@ -567,7 +690,8 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
       const numberCircleSelected = d3.select(this.ref).selectAll('circle.onfocus').size();
       if (numberCircleSelected > 0) {
         return <>
-          <MenuItem onClick={(e) => { removeSelectedNode(e); }}> Remove {numberCircleSelected} selected nodes</MenuItem>
+          <MenuItem onClick={(e) => { this.groupPolymer(d3.select(this.ref).selectAll<SVGCircleElement, SimulationNode>('circle.onfocus')); this.handleClose(); }}> Group this polymer</MenuItem>
+          <MenuItem onClick={(e) => { removeSelectedNodes(e); }}> Remove {numberCircleSelected} selected nodes</MenuItem>
           <MenuItem onClick={(e) => { pasteSelectedNode(e); }}> Paste {numberCircleSelected} selected nodes</MenuItem>
           <MenuItem onClick={() => { d3.select(this.ref).selectAll<SVGCircleElement, SimulationNode>('circle.onfocus').attr("class", "nodes"); this.handleClose(); }}>Unselected</MenuItem> </>;
       } else {
