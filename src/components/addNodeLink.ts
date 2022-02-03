@@ -1,7 +1,7 @@
-import { SimulationNode, SimulationLink, SimulationGroup } from './Form';
+import { SimulationNode, SimulationLink  } from './Form';
 import * as d3 from "d3";
 
-export function addNodeToSVG(Mysvg: SVGElement, radius: number, newnode: SimulationNode[], simulation: any): void {
+export function addNodeToSVG(Mysvg: SVGElement, radius: number, newnode: SimulationNode[], simulation: any, update: any): void {
     const node = d3.select(Mysvg).selectAll("circle")
         .data(newnode, (d: any) => d.id)
         .enter();
@@ -81,14 +81,15 @@ export function addNodeToSVG(Mysvg: SVGElement, radius: number, newnode: Simulat
 
                 if (d.links) d.links.push(closest);
                 else d.links = [closest];
-            
+
                 if (closest.links) closest.links.push(d);
                 else closest.links = [d];
-            
-                const link = d3.select(Mysvg).selectAll("line")
-                    .data( [newlink], (d: any) => d.source.id + "-" + d.target.id)
+
+                d3.select(Mysvg).selectAll("line")
+                    .data([newlink], (d: any) => d.source.id + "-" + d.target.id)
                     .enter();
                 addLinkToSVG(Mysvg, radius, [newlink]);
+                update();
             }
         }
         simulation.velocityDecay(0.3)
@@ -142,7 +143,7 @@ export function checkLink(node1: SimulationNode, node2: SimulationNode) {
 
 
 export function addLinkToSVG(Mysvg: SVGElement, radius: number, newLink: SimulationLink[]): void {
-    
+
     const link = d3.select(Mysvg).selectAll("line")
         .data(newLink, (d: any) => d.source.id + "-" + d.target.id)
         .enter();

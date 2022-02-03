@@ -98,7 +98,9 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
     else {
       console.log("same state")
     }
+
   }
+
 
   // Define graph property
   UpdateSVG = () => {
@@ -132,7 +134,7 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
 
     // Si des news props apparaissent depuis manager on ajoute les noeuds !!!
     if (this.prevPropsNewnode !== this.props.newNodes) {
-      addNodeToSVG(this.ref, this.currentnodeRadius, this.props.newNodes, this.simulation)
+      addNodeToSVG(this.ref, this.currentnodeRadius, this.props.newNodes, this.simulation, this.handleUpdateSVG)
 
       //Keep the previous props in memory
       this.prevPropsNewLink = this.props.newLinks;
@@ -198,8 +200,7 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
       newNodes.push(newNode)
     }
 
-    addNodeToSVG(this.ref, this.currentnodeRadius, newNodes, this.simulation)
-
+    addNodeToSVG(this.ref, this.currentnodeRadius, newNodes, this.simulation, this.handleUpdateSVG)
     // and then addLink
     // create newlink
     let newlinks: { source: { resname: string; seqid: number; id: string | number; }; target: { resname: string; seqid: number; id: string | number; }; }[] = []
@@ -241,7 +242,14 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
     }
   };
 
+  handleUpdateSVG = () => {
+    this.UpdateSVG()
+  };
+
   render() {
+
+
+
     const removeNodesFromContextMenu = (nodetorm: any[]) => {
       this.setState({ nodeToRemove: nodetorm })
     }
@@ -261,8 +269,10 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
           handleClose={this.handleClose}
           svg={d3.select(this.ref)}
           handleRemove={removeNodesFromContextMenu}
-          handlePaste={PasteNodesFromContextMenu} 
+          handlePaste={PasteNodesFromContextMenu}
+          handleUpdate ={this.handleUpdateSVG}
           simulation={this.simulation}>
+          
         </CustomContextMenu>;
       }
       else return;

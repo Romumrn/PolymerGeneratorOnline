@@ -2,7 +2,7 @@ import * as React from "react";
 import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
 import * as d3 from "d3";
-import { SimulationNode, SimulationLink, SimulationGroup } from '../Form';
+import { SimulationNode, SimulationLink} from '../Form';
 
 interface props {
     x: number;
@@ -13,16 +13,12 @@ interface props {
     handleClose: () => void;
     handleRemove: (node: any[]) => void;
     handlePaste: () => void;
+    handleUpdate: () => void;
     svg: d3.Selection<SVGSVGElement, unknown, null, undefined>;
 
 }
 
 export default class CustomContextMenu extends React.Component<props> {
-
-    constructor(props: props) {
-        // Required step: always call the parent class' constructor
-        super(props);
-    }
 
     exportJson = (simulation: d3.Simulation<SimulationNode, SimulationLink>) => {
         console.log("Download json ! ");
@@ -158,8 +154,7 @@ export default class CustomContextMenu extends React.Component<props> {
                     dataSelection = intersection;
                     console.log("after", dataSelection.length)
                 }
-
-                //this.UpdateSVG()
+                this.props.handleUpdate();
                 this.props.handleClose();
             }
         }
