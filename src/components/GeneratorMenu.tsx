@@ -157,7 +157,8 @@ export default class GeneratorMenu extends React.Component<propsmenu, GeneratorM
             endIcon={<Insights />}
             id="addlink"
             variant="contained"
-            onClick={() => this.CheckNewLink(this.state.id1, this.state.id2)}>
+            // onClick={() => this.CheckNewLink(this.state.id1, this.state.id2)}>
+            onClick={() => alert("Out of service")}>
             Add link
           </Button>
         </div>

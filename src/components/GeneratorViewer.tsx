@@ -1,28 +1,17 @@
 import * as React from "react";
 import * as d3 from "d3";
-import Menu from '@mui/material/Menu';
-import MenuItem from '@mui/material/MenuItem';
+import CustomContextMenu from "./Viewer/CustomContextMenu";
 import { SimulationNode, SimulationLink, SimulationGroup } from './Form';
+import { initSVG, initSimulation, reloadSimulation } from './Viewer/SimulationSVGFunction';
+import { addNodeToSVG, addLinkToSVG } from './addNodeLink';
 import './GeneratorViewer.css';
 
 
 interface propsviewer {
   newNodes: SimulationNode[];
   newLinks: SimulationLink[];
-  addlink: (link1: SimulationNode, link2: SimulationNode) => void;
   generateID: () => string;
 }
-
-function hashStringToColor(str: string) {
-  var hash = 5381;
-  for (var i = 0; i < str.length; i++) {
-    hash = ((hash << 5) + hash) + str.charCodeAt(i); /* hash * 33 + c */
-  }
-  var r = (hash & 0xFF0000) >> 16;
-  var g = (hash & 0x00FF00) >> 8;
-  var b = hash & 0x0000FF;
-  return "#" + ("0" + r.toString(16)).substr(-2) + ("0" + g.toString(16)).substr(-2) + ("0" + b.toString(16)).substr(-2);
-};
 
 interface statecustommenu {
   x: number,
@@ -35,7 +24,6 @@ interface statecustommenu {
 export default class GeneratorViewer extends React.Component<propsviewer, statecustommenu> {
 
   state: statecustommenu = { x: 0, y: 0, nodeClick: undefined, show: false, nodeToRemove: [] };
-
 
   // Ajouter un point d'exclamation veut dire qu'on est sur que la valeur n'est pas nul
   ref!: SVGSVGElement;
@@ -58,32 +46,37 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
     .addAll(this.props.nodes);
   }*/
 
-  // Define simulation forcefield 
-  simulation = d3.forceSimulation<SimulationNode, SimulationLink>()
-    .force("charge", d3.forceManyBody())
-    .force("x", d3.forceX(this.taille / 2).strength(0.02))
-    .force("y", d3.forceY(this.taille / 2).strength(0.02))
-    .force("link", d3.forceLink()
-      .id(function (d: any) { return d.id; })
-      .distance(this.currentnodeRadius * 2.5)
-    )
-
-
-  //https://reactjs.org/docs/react-component.html#componentdidupdate
+  // Init simulation 
+  simulation = initSimulation(this.taille, this.currentnodeRadius);
 
   componentDidMount() {
+    //Draw svg frame
+    initSVG(this.ref, this.taille);
 
-    // const isSVGCircleElement = (targetElement: any): targetElement is SVGCircleElement =>
-    //   targetElement.classList.contains("nodes");
+    const mySVG = d3.select(this.ref)
 
-    this.drawSGV();
-    /*bindCircleShiftClick*/
-    // this.frame.addEventListener('click', (ev: MouseEvent) => {
-    //   if (!ev.ctrlKey) return;
-    //   if (!isSVGCircleElement(ev.target)) return;
-    //   
-    //   ev.target.classList.toggle('onfocus');
-    // });
+    mySVG.call(d3.zoom<SVGSVGElement, unknown>().scaleExtent([0.1, 1.8]).on("zoom", (event) => {
+      //On recupere la valeur de zoom 
+      const zoomValue = event.transform.k;
+      //On modifie le rayon en fonction du zoom 
+      this.currentnodeRadius = this.nodeRadius * zoomValue;
+      console.log(zoomValue);
+
+      mySVG.selectAll("circle")
+        .attr("r", this.currentnodeRadius)
+        .attr("stroke-width", this.currentnodeRadius / 4)
+
+      mySVG.selectAll("line")
+        .attr("stroke-width", this.currentnodeRadius / 3)
+
+      //Change simulation property
+      this.simulation.force("link", d3.forceLink()
+        .distance(this.currentnodeRadius * 2.5))
+        .force("x", d3.forceX(this.taille / 2).strength(0.02 / zoomValue))
+        .force("y", d3.forceY(this.taille / 2).strength(0.02 / zoomValue))
+
+      this.UpdateSVG()
+    }));
   }
 
 
@@ -107,114 +100,20 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
     }
   }
 
-
-  // handleKey = (e: KeyboardEvent) => {
-  //   console.log("handling key")
-  //   console.log(e.code);
-  // }
-
-  //Draw svg frame
-  drawSGV = () => {
-    console.log("Svg frame draw");
-
-
-    d3.select(this.ref)
-      .attr("style", "outline: thin solid grey;")
-      .attr("width", this.taille)
-      .attr("height", this.taille)
-      // .each((d) => console.log("Dessiné"))
-      .on("mousemove", (e) => {
-        [this.mouseX, this.mouseY] = d3.pointer(e);
-      })
-      .call(d3.zoom<SVGSVGElement, unknown>().scaleExtent([0.1, 1.8]).on("zoom", (event) => {
-        const zoomValue = event.transform.k;
-        this.currentnodeRadius = this.nodeRadius * zoomValue;
-        console.log(zoomValue);
-        d3.select(this.ref).selectAll("circle")
-          .attr("r", this.currentnodeRadius)
-          .attr("stroke-width", this.currentnodeRadius / 4)
-
-        d3.select(this.ref).selectAll("line")
-          .attr("stroke-width", this.currentnodeRadius / 3)
-
-        this.simulation.force("link", d3.forceLink()
-          .distance(this.currentnodeRadius * 2.5))
-          .force("x", d3.forceX(this.taille / 2).strength(0.02 / zoomValue))
-          .force("y", d3.forceY(this.taille / 2).strength(0.02 / zoomValue))
-
-        this.UpdateSVG()
-      }));
-
-
-
-
-
-    d3.select(this.ref).append("g")
-      .attr("class", "brush")
-      .call(d3.brush()
-        .on("start brush", (event: any) => {
-          this.simulation.stop(); //Stop simulation when brush
-          const selection: any = event.selection; //Get brush zone coord [[x0, y0], [x1, y1]],
-          if (selection) {
-            //select all node inside brush zone 
-            d3.select(this.ref).selectAll("circle")
-              .filter((d: any) => ((d.x < selection[1][0]) && (d.x > selection[0][0]) && (d.y < selection[1][1]) && (d.y > selection[0][1])))
-              .attr("class", "onfocus");
-            //select all link inside brush zone 
-
-            //Faire verif :
-            //Si 2 noeuds sont selectionnés le lien qui les unis est selectionné par defaut 
-            // d3.select(this.ref).selectAll("line")
-            //   .filter((d: any) => ((d.x < selection[1][0]) && (d.x > selection[0][0]) && (d.y < selection[1][1]) && (d.y > selection[0][1])))
-            //   .attr("class", "onfocus");
-            // Si un noeud sort de la zone enlever le onfocus
-          }
-        })
-        .on("end", (event: any) => {
-          // Ne fonctionne pas ???????????????????????????????????,
-          d3.brush().move(d3.selectAll("brush"), null, undefined)
-        })
-      );
-
-  }
-
   // Define graph property
   UpdateSVG = () => {
-
-    const addlink = this.props.addlink;
     const svgContext = d3.select(this.ref);
 
-    const reloadSimulation = () => {
-      console.log("Reload simulation");
-
-      const snodes: SimulationNode[] = []
-      svgContext.selectAll("circle").each((d: any) => snodes.push(d))
-      const slinks: SimulationLink[] = [];
-      svgContext.selectAll("line").each((d: any) => slinks.push(d))
-
-      this.simulation.stop()
-      this.simulation.nodes(snodes)
-        .force<d3.ForceLink<SimulationNode, SimulationLink>>("link")?.links(slinks);
-      this.simulation
-        .on("tick", ticked)
-        .alpha(1)
-        .alphaTarget(0)
-        .velocityDecay(0.3)
-        .restart();
-    }
-
-    //Verifier si on doit supprimer des trucs !!! 
+    // Check if we need to remove nodes in state.nodeToRemove
     if (this.state.nodeToRemove.length > 0) {
-      console.log("On veut supprimer ca : ", this.state.nodeToRemove);
+      console.log("To remove : ", this.state.nodeToRemove);
       for (const node of this.state.nodeToRemove) {
-        console.log("on entre dans la boucle et on supprime ca :", node);
-        console.log(node.links)
+        //console.log("On entre dans la boucle et on supprime ca :", node);
         //remove link in object node
         if (node.links !== undefined) {
           for (let linkednode of node.links) {
-
             console.log("linkednode", linkednode);
-            //remove in non selected node link with selected nodes
+            //remove link between node and removed node
             linkednode.links = linkednode.links!.filter((nodeToRM: SimulationNode) => !this.state.nodeToRemove.includes(nodeToRM));
           }
         }
@@ -226,246 +125,43 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
       return;
     }
 
-
-    const newNodesID = new Set();
     // Verifier si on doit bien ajouter des props ou si c'est deja fait 
     if (this.prevPropsNewLink !== this.props.newLinks) {
-      const link = svgContext.selectAll("line")
-        .data(this.props.newLinks, (d: any) => d.source.id + "-" + d.target.id)
-        .enter();
-
-      link.append("line")
-        .attr("class", "links")
-        .attr("stroke", "grey")
-        .attr("stroke-width", this.currentnodeRadius / 3)
-        .attr("opacity", 0.5)
-        .attr("stroke-linecap", "round")
-        .attr("source", function (d: any) { newNodesID.add(d.source.id); return d.source.id })
-        .attr("target", function (d: any) { newNodesID.add(d.target.id); return d.target.id })
-        .on("click", function (this: any, e: EventTarget, d: SimulationLink) {
-          //Si on click dessus ca supprime le lien 
-          //Fonction supprimé pour le moment
-          //removeThisLink(this)
-        });
+      addLinkToSVG(this.ref, this.currentnodeRadius, this.props.newLinks)
     }
 
-
-    // Si des news props apparaissent on ajoute les noeuds !!!
+    // Si des news props apparaissent depuis manager on ajoute les noeuds !!!
     if (this.prevPropsNewnode !== this.props.newNodes) {
-      const node = svgContext.selectAll("circle")
-        .data(this.props.newNodes, (d: any) => d.id)
-        .enter();
+      addNodeToSVG(this.ref, this.currentnodeRadius, this.props.newNodes, this.simulation)
 
-      // Define entering nodes     
-      node.append('circle')
-        .attr("class", "nodes")
-        .attr("r", this.currentnodeRadius)
-        .attr("fill", function (d: SimulationNode) { return hashStringToColor(d.resname) })
-        .attr('stroke', "grey")
-        .attr("stroke-width", this.currentnodeRadius / 4)
-        .attr("id", function (d: SimulationNode) { return d.id })
-        .call(d3.drag<SVGCircleElement, SimulationNode>()
-          .on("start", dragstarted)
-          .on("drag", dragged)
-          .on("end", dragended)
-        )
-        .on('click', function (this: any, e: any, d: SimulationNode) {
-          if (e.ctrlKey) {
-            d3.select(this).attr("class", "onfocus")
-          }
-          else if (e.shiftKey) return;
-          //Si on click sur le lien il est supprimé 
-          else console.log(d);
-        });
-
-      //Need to be attach with a g node
-      // Add a title to each node with his name and his id
-      node.append("title")
-        .text(function (d: SimulationNode) {
-          let title = d.resname + " : " + d.id;
-          return title;
-        })
+      //Keep the previous props in memory
+      this.prevPropsNewLink = this.props.newLinks;
+      this.prevPropsNewnode = this.props.newNodes;
     }
-
-    //Keep the previous props in memory
-    this.prevPropsNewLink = this.props.newLinks;
-    this.prevPropsNewnode = this.props.newNodes;
-
-    //Fait apparaitre tous les noeuds au dessus 
-    svgContext.selectAll<SVGCircleElement, SimulationNode>('circle')
-      .filter((d: SimulationNode) => newNodesID.has(d.id))
-      .raise();
-
-
-    // Define drag behaviour  
-    const self = this;
-    type dragEvent = d3.D3DragEvent<SVGCircleElement, SimulationNode, any>;
-    function dragstarted(event: dragEvent, d: SimulationNode) {
-      if (event.sourceEvent.shiftKey) {
-        console.log("Shift key is pressed/ skipping dragstarted!");
-        return;
-      }
-      console.log("- je bouge - ", d.id)
-    }
-
-    const clamp = (x: number, lo: number, hi: number) => {
-      return x < lo ? lo : x > hi ? hi : x;
-    }
-
-    function dragged(event: dragEvent, d: SimulationNode) {
-      if (event.sourceEvent.shiftKey) {
-        console.log("Shift key is pressed/ skipping dragged!");
-        return;
-      }
-      d.fx = clamp(event.x, 0, self.taille);
-      d.fy = clamp(event.y, 0, self.taille);
-      self.simulation.alphaDecay(.0005)
-        .velocityDecay(0.6)
-        .alpha(0.1).restart();
-    }
-
-    function dragended(event: dragEvent, d: SimulationNode) {
-      if (event.sourceEvent.shiftKey) {
-        console.log("Shift key is pressed skipping dragended!");
-        return;
-      }
-      // Comment below for sticky node
-      d.fx = null;
-      d.fy = null;
-
-      const closest = incontact(d)
-      if (closest) {
-        addlink(d, closest);
-      }
-
-      self.simulation.velocityDecay(0.3)
-        .alphaDecay(0.0228/*1 - Math.pow(0.001, 1 / self.simulation.alphaMin())*/)
-        .alpha(1)
-        .alphaTarget(0)
-        .restart();
-    }
-
-    //Add function to detect contact between nodes and create link
-    const incontact = (c: SimulationNode): SimulationNode | null => {
-      let closest: [number, SimulationNode | null] = [this.currentnodeRadius * 2.2, null];
-      self.simulation.nodes().forEach((d) => {
-        if (d.id === c.id) return;
-        const dist = Math.sqrt(((c.x ?? 0) - (d.x ?? 0)) * ((c.x ?? 0) - (d.x ?? 0))
-          + ((c.y ?? 0) - (d.y ?? 0)) * ((c.y ?? 0) - (d.y ?? 0))
-        );
-        //console.log('[DRAG]cx, cy :', c.x, c.y, '|| [NEIGH] d.x, d.y', d.x, d.y, ' =>D:', dist);
-        if (dist < closest[0]) closest = [dist, d];
-      });
-      return closest[1]
-    };
-
-
     // Build a list of grouped nodes instead of compute it a each iteration
     const groups: SimulationGroup[] = [];
 
     const svgPath = [];
-    d3.select(this.ref)
+    svgContext
       .selectAll('path.area')
       .each(function () {
         svgPath.push(this);
       });
 
     if (svgPath.length !== 0) {
-      for (let i = 0; i < svgPath.length; i++) {
+      for (let i = 1; i <= svgPath.length; i++) {
         let selectedNodes: SimulationNode[] = [];
-        d3.select(self.ref).selectAll("circle")
+        d3.select(this.ref).selectAll("circle")
           .filter((d: any) => (d.group === i))
           .each((d: any) => {
-            console.log(d);
             selectedNodes.push(d);
           });
+        console.log("groups.push({ id: i, nodes: selectedNodes }) ", i)
         groups.push({ id: i, nodes: selectedNodes })
       }
     }
 
-    function updatePolymerPath() {
-      // recupere les path existant 
-      //  ensuite les nodes qui le compose avec le group 
-      //  et refaire la simulation avec les nouvelles positions 
-
-      if (groups.length !== 0) {
-        for (let group of groups) {
-          let coords: [number, number][] = [];
-          group.nodes.map((d: SimulationNode) => coords.push([d.x!, d.y!]))
-          let hull = d3.polygonHull(coords)
-
-          d3.select(self.ref)
-            .selectAll("area")
-            .data([hull])
-            .enter().append("path")
-            .attr("group", group.id)
-            .attr("class", "area")
-            .attr("d", (d) => "M" + d!.join("L") + "Z")
-        }
-      }
-
-      //Pour chaque polymere groupé on itere 
-
-      // let selectedNodesCoords: [number, number][] = [];
-      // // (malist de nodes appartenant au groupe)
-      // //   .each((d: SimulationNode) => {
-      // //     selectedNodesCoords.push([d.x!, d.y!]);
-      // //   });
-
-
-      // let hull = d3.polygonHull(selectedNodesCoords);
-
-      // d3.select(self.ref)
-      //   .selectAll("area")
-      //   .data([hull])
-      //   .enter().append("path")
-      //   .attr("group", groupeID)
-      //   .attr("class", "area")
-      //   .attr("d", (d) => "M" + d!.join("L") + "Z")
-      //   .attr("fill", "lightgreen")
-      //   .attr("stroke", "lightgreen")
-      //   .attr("stroke-width", "40")
-      //   .attr("stroke-location", "outside")
-      //   .attr("stroke-linejoin", "round")
-      //   .style("opacity", 0.2)
-      //   .on('click', function (this: any, e: any) {
-      //     console.log(this);
-      //   });
-
-      // //remonter les noeuds dans le svg
-      // listNodesD3.raise()
-    }
-
-    // Define ticked with coords 
-    function ticked() {
-      self.frameCount++;
-      console.log("Tick");
-      svgContext.selectAll("line")
-        .attr("x1", function (d: any) {
-          return d.source.x;
-        })
-        .attr("y1", function (d: any) {
-          return d.source.y;
-        })
-        .attr("x2", function (d: any) {
-          return d.target.x;
-        })
-        .attr("y2", function (d: any) {
-          return d.target.y;
-        });
-
-      svgContext.selectAll("circle")
-        .attr("cx", function (d: any) {
-          return d.x;
-        })
-        .attr("cy", function (d: any) {
-          return d.y;
-        });
-
-      //updatePolymerPath()
-    }
-
-    reloadSimulation()
+    reloadSimulation(svgContext, this.simulation, groups)
 
   }
 
@@ -474,37 +170,62 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
   };
 
 
-  exportJson = (event: React.MouseEvent) => {
-    console.log("Download json ! ");
-    const myRawNodes = this.simulation.nodes();
-    //   {
-    //     "resname": "glucose",
-    //     "seqid": 0,
-    //     "id": 0
-    //  }
-    const myNodes = myRawNodes.map(obj => {
-      return {
-        "resname": obj.resname,
-        "seqid": 0,
-        "id": obj.id
-      }
-    });
+  pasteSelectedNode = (listNodesToPaste: any) => {
+    console.log("pasteSelectedNode")
+    const idModification: Record<string, string | number>[] = [];
+    let oldNodes: SimulationNode[] = []
+    listNodesToPaste
+      .each((d: SimulationNode) => {
+        oldNodes.push(d)
+        idModification.push({
+          oldID: d.id,
+          resname: d.resname,
+          newID: this.props.generateID(),
+        })
+      });
 
-    console.log(myNodes)
-    const myJSON = JSON.stringify(myNodes);
-    const blob = new Blob([myJSON], { type: "text" });
-    const a = document.createElement("a");
-    a.download = "file.json";
-    a.href = window.URL.createObjectURL(blob);
-    const clickEvt = new MouseEvent("click", {
-      view: window,
-      bubbles: true,
-      cancelable: true,
-    });
-    a.dispatchEvent(clickEvt);
-    a.remove();
-    this.handleClose();
+    //Create new node
+    let newNodes = []
+    for (let node of oldNodes) {
+      const oldid = node.id;
+      const newid = idModification.filter((d: any) => (d.oldID === oldid))[0].newID
+      console.log(node, oldid, newid)
+      let newNode = {
+        resname: node.resname,
+        seqid: 0,
+        id: newid
+      }
+      newNodes.push(newNode)
+    }
+
+    addNodeToSVG(this.ref, this.currentnodeRadius, newNodes, this.simulation)
+
+    // and then addLink
+    // create newlink
+    let newlinks: { source: { resname: string; seqid: number; id: string | number; }; target: { resname: string; seqid: number; id: string | number; }; }[] = []
+    for (let oldnode of oldNodes) {
+      const newid = idModification.filter((d: any) => (d.oldID === oldnode.id))[0].newID
+      const newnodesource = newNodes.filter((d: any) => (d.id === newid))[0]
+      if (oldnode.links !== undefined) {
+        for (let oldnodelink of oldnode.links) {
+          //parmis tous les liens de l'ancien noeud je parcours et j'en creer de nouveau 
+          let newtargetid = idModification.filter((d: any) => (d.oldID === oldnodelink.id))[0].newID
+          const newnodetarget = newNodes.filter((d: any) => (d.id === newtargetid))[0]
+          let newlink = {
+            source: newnodesource,
+            target: newnodetarget
+          }
+          //check if the link doesnt exist 
+          // BUUUGGGGG §§
+          // Link ajouté en double Il faut check si les source target ne sont pas identiques
+          newlinks.push(newlink)
+        }
+      }
+    }
+    addLinkToSVG(this.ref, this.currentnodeRadius, newlinks)
+    this.UpdateSVG()
   }
+
 
   handleContextMenu = (event: React.MouseEvent) => {
     console.log("Custom menu");
@@ -520,204 +241,42 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
     }
   };
 
-
-  currentGroupeID = 0;
-  generateGroupeID = (): number => {
-    this.currentGroupeID++;
-    return this.currentGroupeID
-  }
-
-  //list d3 qui forme le polygon autour de cette liste
-  groupPolymer = (listNodesD3: any) => {
-    const groupeID = this.generateGroupeID();
-    let selectedNodesCoords: [number, number][] = [];
-    listNodesD3
-      .each((d: SimulationNode) => {
-        selectedNodesCoords.push([d.x!, d.y!]);
-        d.group = groupeID
-      });
-
-
-    let hull = d3.polygonHull(selectedNodesCoords);
-
-    if (hull) {
-      d3.select(this.ref)
-        .selectAll("area")
-        .data([hull])
-        .enter().append("path")
-        .attr("group", groupeID)
-        .attr("class", "area")
-        .attr("d", (d) => "M" + d!.join("L") + "Z")
-        .attr("fill", "lightgreen")
-        .attr("stroke", "lightgreen")
-        .attr("stroke-width", "40")
-        .attr("stroke-location", "outside")
-        .attr("stroke-linejoin", "round")
-        .style("opacity", 0.2)
-        .on('click', function (this: any, e: any) {
-          console.log(this);
-        });
-    }
-    else alert("too small")
-
-    this.UpdateSVG()
-
-  }
-
   render() {
-
-    let node: any = this.state.nodeClick;
-
-    const rmnodefromContextMenu = (event: React.MouseEvent) => {
-      console.log("rmnodefromContextMenu", node)
-      this.setState({ nodeToRemove: [node] })
-
-      this.handleClose();
+    const removeNodesFromContextMenu = (nodetorm: any[]) => {
+      this.setState({ nodeToRemove: nodetorm })
+    }
+    const PasteNodesFromContextMenu = () => {
+      this.pasteSelectedNode(d3.select(this.ref).selectAll('circle.onfocus'))
+      this.setState({ show: false })
     }
 
-    const selectConnexeNode = () => {
-      //clean the selected nodes
-      d3.select(this.ref)
-        .selectAll<SVGCircleElement, SimulationNode>('circle.onfocus')
-        .attr("class", "nodes");
-
-      // Create a list and add our initial node in it
-      let s = [];
-
-      s.push(node);
-
-      // Mark the first node as explored
-      let explored: any[] = [];
-
-      //List of id 
-      let connexeNodesId = new Set();
-      connexeNodesId.add(node.id);
-
-      //Chek si le noeud n'est pas connecter aux autres 
-      if (node.links === undefined) {
-        connexeNodesId.add(node.id);
-      }
-      else {
-        //continue while list of linked node is not emphty 
-
-        while (s.length !== 0) {
-          let firstNode = s.shift();
-          //console.log(firstNode)
-          for (let connectedNodes of firstNode.links!) {
-            s.push(connectedNodes);
-            connexeNodesId.add(connectedNodes.id);
-          }
-          explored.push(firstNode)
-          s = s.filter(val => !explored.includes(val));
-        }
-      }
-
-      console.log(node);
-
-      //Transform selected point class onfocus
-      d3.select(this.ref)
-        .selectAll<SVGCircleElement, SimulationNode>('circle')
-        .filter((d: SimulationNode) => connexeNodesId.has(d.id))
-        .attr("class", "onfocus");
-
-      this.handleClose();
-    }
-
-
-    const removeSelectedNodes = (event: React.MouseEvent) => {
-      console.log("remove selected nodes");
-      const seletectNodes: SimulationNode[] = [];
-      d3.select(this.ref)
-        .selectAll<SVGCircleElement, SimulationNode>('circle.onfocus')
-        .each((d: SimulationNode) => seletectNodes.push(d))
-      this.setState({ nodeToRemove: seletectNodes })
-      this.handleClose();
-    }
-
-    const ifnode = () => {
-      if (node) {
-        return <>
-          <MenuItem onClick={rmnodefromContextMenu}>Remove node #{node.id}</MenuItem>
-          <MenuItem onClick={selectConnexeNode}>Select this polymer</MenuItem>
-        </>;
+    const ifContextMenuShouldAppear = (show: boolean) => {
+      if (show) {
+        const CircleSelected = d3.select(this.ref).selectAll('circle.onfocus');
+        return <CustomContextMenu
+          x={this.state.x}
+          y={this.state.y}
+          nodeClick={this.state.nodeClick}
+          selected={CircleSelected}
+          handleClose={this.handleClose}
+          svg={d3.select(this.ref)}
+          handleRemove={removeNodesFromContextMenu}
+          handlePaste={PasteNodesFromContextMenu} 
+          simulation={this.simulation}>
+        </CustomContextMenu>;
       }
       else return;
     }
-
-    const pasteSelectedNode = (e: React.MouseEvent) => {
-      console.log("pasteSelectedNode")
-      const [x, y] = [this.mouseX, this.mouseY]; // Target translation point
-      const ghostNodes: Record<string, string | number>[] = [];
-      d3.select(this.ref).selectAll<SVGCircleElement, SimulationNode>('circle.onfocus')
-        .each((d: SimulationNode) => {
-          ghostNodes.push({
-            x: d.x ?? 0,
-            y: d.y ?? 0,
-            oldID: d.id,
-            resname: d.resname,
-            newID: this.props.generateID(),
-          })
-        });
-      const [x0, y0] = ghostNodes.reduce<[number, number]>((previousValue, currentDatum, i, arr) => {
-        const _x = previousValue[0] + (currentDatum.x as number);
-        const _y = previousValue[1] + (currentDatum.y as number);
-        return i === arr.length - 1 ? [_x / arr.length, _y / arr.length] : [_x, _y];
-      }, [0, 0])
-
-
-      const [tx, ty] = [x - x0, y - y0];
-
-      const node = d3.select(this.ref).selectAll("circle")
-        .data(ghostNodes, (d: any) => d.newID)
-        .enter();
-
-      // Define entering nodes     
-      node.append('circle')
-        .attr("class", "nodes")
-        .attr("r", this.currentnodeRadius)
-        .attr("fill", function (d: any) { return hashStringToColor(d.resname) })
-        .attr('stroke', "pink")
-        .attr("stroke-width", "2")
-        .attr('cx', (d) => (d.x as number) + tx)
-        .attr('cy', (d) => (d.y as number) + ty)
-        .attr("id", function (d: any) { return d.newID });
-
-      this.handleClose();
-    };
-
-    // Si des noeuds sont selectionnés
-    const ifSelectedNode = () => {
-      const numberCircleSelected = d3.select(this.ref).selectAll('circle.onfocus').size();
-      if (numberCircleSelected > 0) {
-        return <>
-          <MenuItem onClick={(e) => { this.groupPolymer(d3.select(this.ref).selectAll<SVGCircleElement, SimulationNode>('circle.onfocus')); this.handleClose(); }}> Group this polymer</MenuItem>
-          <MenuItem onClick={(e) => { removeSelectedNodes(e); }}> Remove {numberCircleSelected} selected nodes</MenuItem>
-          <MenuItem onClick={(e) => { pasteSelectedNode(e); }}> Paste {numberCircleSelected} selected nodes</MenuItem>
-          <MenuItem onClick={() => { d3.select(this.ref).selectAll<SVGCircleElement, SimulationNode>('circle.onfocus').attr("class", "nodes"); this.handleClose(); }}>Unselected</MenuItem> </>;
-      } else {
-        return null;
-      }
-    }
-
 
     return (
       <div className="svg"
         onContextMenu={this.handleContextMenu}
         style={{ cursor: 'context-menu' }}
-        ref={(ref: HTMLDivElement) => this.frame = ref}
-      >
+        ref={(ref: HTMLDivElement) => this.frame = ref} >
+
         <svg className="container" id="svg" ref={(ref: SVGSVGElement) => this.ref = ref}></svg>
 
-        <Menu
-          open={this.state.show === true}
-          onClose={this.handleClose}
-          anchorReference="anchorPosition"
-          anchorPosition={{ top: this.state.y + 2, left: this.state.x + 2 }} >
-          {ifnode()}
-          {ifSelectedNode()}
-          <MenuItem onClick={this.exportJson}>Download Json</MenuItem>
-          <MenuItem onClick={this.handleClose}>Super mega idea</MenuItem>
-        </Menu>
+        {ifContextMenuShouldAppear(this.state.show)}
 
       </div >);
   }

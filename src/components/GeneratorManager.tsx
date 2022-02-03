@@ -3,7 +3,7 @@ import * as React from "react";
 import GeneratorMenu from './GeneratorMenu';
 import PolymerViewer from './GeneratorViewer';
 import { FormState, SimulationNode, SimulationLink } from './Form'
-import { checkLink } from './checkLink';
+import { checkLink } from './addNodeLink';
 
 // Pour plus tard
 //https://github.com/korydondzila/React-TypeScript-D3/tree/master/src/components
@@ -122,7 +122,7 @@ export default class GeneratorManager extends React.Component {
             <GeneratorMenu addnode={this.addnode} addlink={this.addlink} />
           </Grid>
           <Grid item xs={8}>
-            <PolymerViewer newNodes={this.state.nodes} newLinks={this.state.links} addlink={this.addlink} generateID={this.generateID} />
+            <PolymerViewer newNodes={this.state.nodes} newLinks={this.state.links} generateID={this.generateID} />
           </Grid>
         </Grid>
 
