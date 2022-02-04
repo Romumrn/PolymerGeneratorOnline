@@ -158,7 +158,6 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
           .each((d: any) => {
             selectedNodes.push(d);
           });
-        console.log("groups.push({ id: i, nodes: selectedNodes }) ", i)
         groups.push({ id: i, nodes: selectedNodes })
       }
     }
@@ -192,7 +191,7 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
       const oldid = node.id;
       const newid = idModification.filter((d: any) => (d.oldID === oldid))[0].newID
       console.log(node, oldid, newid)
-      let newNode = {
+      let newNode: SimulationNode = {
         resname: node.resname,
         seqid: 0,
         id: newid
@@ -203,7 +202,7 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
     addNodeToSVG(this.ref, this.currentnodeRadius, newNodes, this.simulation, this.handleUpdateSVG)
     // and then addLink
     // create newlink
-    let newlinks: { source: { resname: string; seqid: number; id: string | number; }; target: { resname: string; seqid: number; id: string | number; }; }[] = []
+    let newlinks: SimulationLink[] = []
     for (let oldnode of oldNodes) {
       const newid = idModification.filter((d: any) => (d.oldID === oldnode.id))[0].newID
       const newnodesource = newNodes.filter((d: any) => (d.id === newid))[0]
@@ -212,14 +211,15 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
           //parmis tous les liens de l'ancien noeud je parcours et j'en creer de nouveau 
           let newtargetid = idModification.filter((d: any) => (d.oldID === oldnodelink.id))[0].newID
           const newnodetarget = newNodes.filter((d: any) => (d.id === newtargetid))[0]
-          let newlink = {
+          let newlink: SimulationLink = {
             source: newnodesource,
             target: newnodetarget
           }
           //check if the link doesnt exist 
-          // BUUUGGGGG §§
-          // Link ajouté en double Il faut check si les source target ne sont pas identiques
           newlinks.push(newlink)
+          // Link ajouté en double Il faut check si les source target ne sont pas identiques
+          if (newnodesource.links === undefined) newnodesource.links = [newnodetarget]
+          else newnodesource.links!.push(newnodetarget)
         }
       }
     }
@@ -248,8 +248,6 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
 
   render() {
 
-
-
     const removeNodesFromContextMenu = (nodetorm: any[]) => {
       this.setState({ nodeToRemove: nodetorm })
     }
@@ -270,9 +268,9 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
           svg={d3.select(this.ref)}
           handleRemove={removeNodesFromContextMenu}
           handlePaste={PasteNodesFromContextMenu}
-          handleUpdate ={this.handleUpdateSVG}
+          handleUpdate={this.handleUpdateSVG}
           simulation={this.simulation}>
-          
+
         </CustomContextMenu>;
       }
       else return;
