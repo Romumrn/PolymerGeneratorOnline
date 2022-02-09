@@ -3,7 +3,7 @@ import * as d3 from "d3";
 import CustomContextMenu from "./Viewer/CustomContextMenu";
 import { SimulationNode, SimulationLink, SimulationGroup } from './Form';
 import { initSVG, initSimulation, reloadSimulation } from './Viewer/SimulationSVGFunction';
-import { addNodeToSVG, addLinkToSVG } from './addNodeLink';
+import { addNodeToSVG, addLinkToSVG, checkLink, setSVG } from './addNodeLink';
 import './GeneratorViewer.css';
 
 
@@ -77,6 +77,8 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
 
       this.UpdateSVG()
     }));
+
+    setSVG(this.ref);
   }
 
 
@@ -106,35 +108,40 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
   UpdateSVG = () => {
     const svgContext = d3.select(this.ref);
 
-    // Check if we need to remove nodes in state.nodeToRemove
-    if (this.state.nodeToRemove.length > 0) {
-      console.log("To remove : ", this.state.nodeToRemove);
-      for (const node of this.state.nodeToRemove) {
-        //console.log("On entre dans la boucle et on supprime ca :", node);
-        //remove link in object node
-        if (node.links !== undefined) {
-          for (let linkednode of node.links) {
-            console.log("linkednode", linkednode);
-            //remove link between node and removed node
-            linkednode.links = linkednode.links!.filter((nodeToRM: SimulationNode) => !this.state.nodeToRemove.includes(nodeToRM));
-          }
-        }
-        svgContext.selectAll<SVGCircleElement, SimulationNode>("circle").filter((d: SimulationNode) => (d.id === node.id)).remove();
-        //and then remove link inside svg
-        svgContext.selectAll("line").filter((link: any) => ((link.source.id === node.id) || (link.target.id === node.id))).remove();
-      }
-      this.setState({ nodeToRemove: [], nodeClick: undefined });
-      return;
-    }
+    // // Check if we need to remove nodes in state.nodeToRemove
+    // if (this.state.nodeToRemove.length > 0) {
+    //   console.log("To remove : ", this.state.nodeToRemove);
+    //   for (const node of this.state.nodeToRemove) {
+    //     //remove link in object node
+    //     if (node.links !== undefined) {
+    //       for (let linkednode of node.links) {
+    //         console.log("linkednode", linkednode);
+    //         //remove link between node and removed node
+    //         linkednode.links = linkednode.links!.filter((nodeToRM: SimulationNode) => !this.state.nodeToRemove.includes(nodeToRM));
+    //       }
+    //     }
+    //     svgContext.selectAll<SVGCircleElement, SimulationNode>("circle").filter((d: SimulationNode) => (d.id === node.id)).remove();
+    //     //and then remove link inside svg
+    //     svgContext.selectAll("line").filter((link: any) => ((link.source.id === node.id) || (link.target.id === node.id))).remove();
+    //   }
+    //   this.setState({ nodeToRemove: [], nodeClick: undefined });
+    //   return;
+    // }
 
     // Verifier si on doit bien ajouter des props ou si c'est deja fait 
     if (this.prevPropsNewLink !== this.props.newLinks) {
-      addLinkToSVG(this.ref, this.currentnodeRadius, this.props.newLinks)
+      let checkedLinktoadd: SimulationLink[] = [];
+      for (let link of this.props.newLinks) {
+        if (checkLink(link.source, link.target)) {
+          checkedLinktoadd.push(link)
+        }
+      }
+      addLinkToSVG(this.currentnodeRadius, checkedLinktoadd)
     }
 
     // Si des news props apparaissent depuis manager on ajoute les noeuds !!!
     if (this.prevPropsNewnode !== this.props.newNodes) {
-      addNodeToSVG(this.ref, this.currentnodeRadius, this.props.newNodes, this.simulation, this.handleUpdateSVG)
+      addNodeToSVG(this.currentnodeRadius, this.props.newNodes, this.simulation, this.handleUpdateSVG)
 
       //Keep the previous props in memory
       this.prevPropsNewLink = this.props.newLinks;
@@ -158,7 +165,13 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
           .each((d: any) => {
             selectedNodes.push(d);
           });
-        groups.push({ id: i, nodes: selectedNodes })
+        //If nodes was removed
+        if (selectedNodes.length !== 0) {
+          groups.push({ id: i, nodes: selectedNodes })
+        }
+        else {
+
+        }
       }
     }
 
@@ -199,7 +212,7 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
       newNodes.push(newNode)
     }
 
-    addNodeToSVG(this.ref, this.currentnodeRadius, newNodes, this.simulation, this.handleUpdateSVG)
+    addNodeToSVG(this.currentnodeRadius, newNodes, this.simulation, this.handleUpdateSVG)
     // and then addLink
     // create newlink
     let newlinks: SimulationLink[] = []
@@ -223,7 +236,7 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
         }
       }
     }
-    addLinkToSVG(this.ref, this.currentnodeRadius, newlinks)
+    addLinkToSVG(this.currentnodeRadius, newlinks)
     this.UpdateSVG()
   }
 
@@ -248,9 +261,7 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
 
   render() {
 
-    const removeNodesFromContextMenu = (nodetorm: any[]) => {
-      this.setState({ nodeToRemove: nodetorm })
-    }
+
     const PasteNodesFromContextMenu = () => {
       this.pasteSelectedNode(d3.select(this.ref).selectAll('circle.onfocus'))
       this.setState({ show: false })
@@ -266,7 +277,6 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
           selected={CircleSelected}
           handleClose={this.handleClose}
           svg={d3.select(this.ref)}
-          handleRemove={removeNodesFromContextMenu}
           handlePaste={PasteNodesFromContextMenu}
           handleUpdate={this.handleUpdateSVG}
           simulation={this.simulation}>

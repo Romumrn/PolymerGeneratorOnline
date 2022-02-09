@@ -3,7 +3,6 @@ import * as React from "react";
 import GeneratorMenu from './GeneratorMenu';
 import PolymerViewer from './GeneratorViewer';
 import { FormState, SimulationNode, SimulationLink } from './Form'
-import { checkLink } from './addNodeLink';
 
 // Pour plus tard
 //https://github.com/korydondzila/React-TypeScript-D3/tree/master/src/components
@@ -12,14 +11,16 @@ import { checkLink } from './addNodeLink';
 //https://javascript.plainenglish.io/how-to-implement-drag-and-drop-from-react-to-svg-d3-16700f01470c
 interface StateSimulation {
   nodes: SimulationNode[],
-  links: SimulationLink[]
+  links: SimulationLink[],
+  dataForForm: {},
 }
 
 export default class GeneratorManager extends React.Component {
 
   state: StateSimulation = {
     nodes: [],
-    links: []
+    links: [],
+    dataForForm: {},
   }
 
   currentAvaibleID = 0;
@@ -60,19 +61,17 @@ export default class GeneratorManager extends React.Component {
   }
 
   addlink = (node1: SimulationNode, node2: SimulationNode): void => {
-    if (checkLink(node1, node2)) {
-      let newlinks = [{
-        "source": node1,
-        "target": node2
-      }];
-      if (node1.links) node1.links.push(node2);
-      else node1.links = [node2];
+    let newlinks = [{
+      "source": node1,
+      "target": node2
+    }];
+    if (node1.links) node1.links.push(node2);
+    else node1.links = [node2];
 
-      if (node2.links) node2.links.push(node1);
-      else node2.links = [node1];
+    if (node2.links) node2.links.push(node1);
+    else node2.links = [node1];
 
-      this.setState({ links: newlinks });
-    }
+    this.setState({ links: newlinks });
   }
 
 
@@ -101,17 +100,24 @@ export default class GeneratorManager extends React.Component {
     this.setState({ links: linkscopy });
   }
 
-
-  //// Coriger bug !!!!!!!!! 
-  removelink = (link: any): void => {
-    console.log(link);
-    let linkscopy = [...this.state.links];
-    let indexlinktoremove = linkscopy.findIndex(e => e === link);
-    console.log(indexlinktoremove);
-    linkscopy.splice(indexlinktoremove, 1);
-    this.setState({ links: linkscopy });
+  componentDidMount() {
+    this.callBackendAPI()
+      .then((value: {}) => this.setState({ dataForForm: value}) )
+      .catch(err => console.log(err));
+    
+    console.log(this.state)
   }
-
+  // fetching the GET route from the Express server which matches the GET route from server.js
+  callBackendAPI = async () => {
+    const response = await fetch('/data');
+    const body = await response.json();
+    console.log( "fetch")
+    console.log(body)
+    if (response.status !== 200) {
+      throw Error(body.message)
+    }
+    return body;
+  };
 
   render() {
     return (
@@ -119,7 +125,7 @@ export default class GeneratorManager extends React.Component {
       <div>
         <Grid container spacing={2}>
           <Grid item xs={4}>
-            <GeneratorMenu addnode={this.addnode} addlink={this.addlink} />
+            <GeneratorMenu addnode={this.addnode} addlink={this.addlink} dataForceFieldMolecule={this.state.dataForForm} />
           </Grid>
           <Grid item xs={8}>
             <PolymerViewer newNodes={this.state.nodes} newLinks={this.state.links} generateID={this.generateID} />

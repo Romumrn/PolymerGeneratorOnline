@@ -1,7 +1,13 @@
-import { SimulationNode, SimulationLink  } from './Form';
+import { SimulationNode, SimulationLink } from './Form';
 import * as d3 from "d3";
 
-export function addNodeToSVG(Mysvg: SVGElement, radius: number, newnode: SimulationNode[], simulation: any, update: any): void {
+
+let Mysvg: SVGElement;
+export function setSVG(svgref: SVGElement) {
+    Mysvg = svgref;
+}
+
+export function addNodeToSVG(radius: number, newnode: SimulationNode[], simulation: any, update: () => void) {
     const node = d3.select(Mysvg).selectAll("circle")
         .data(newnode, (d: any) => d.id)
         .enter();
@@ -15,7 +21,6 @@ export function addNodeToSVG(Mysvg: SVGElement, radius: number, newnode: Simulat
         .attr("stroke-width", radius / 4)
         .attr("id", function (d: SimulationNode) { return d.id })
         .call(d3.drag<SVGCircleElement, SimulationNode>()
-            .on("start", dragstarted)
             .on("drag", dragged)
             .on("end", dragended)
         )
@@ -36,12 +41,6 @@ export function addNodeToSVG(Mysvg: SVGElement, radius: number, newnode: Simulat
 
     // Define drag behaviour  
     type dragEvent = d3.D3DragEvent<SVGCircleElement, SimulationNode, any>;
-    function dragstarted(event: dragEvent, d: SimulationNode) {
-        if (event.sourceEvent.shiftKey) {
-            console.log("Shift key is pressed/ skipping dragstarted!");
-            return;
-        }
-    }
 
     const clamp = (x: number, lo: number, hi: number) => {
         return x < lo ? lo : x > hi ? hi : x;
@@ -88,7 +87,7 @@ export function addNodeToSVG(Mysvg: SVGElement, radius: number, newnode: Simulat
                 d3.select(Mysvg).selectAll("line")
                     .data([newlink], (d: any) => d.source.id + "-" + d.target.id)
                     .enter();
-                addLinkToSVG(Mysvg, radius, [newlink]);
+                addLinkToSVG(radius, [newlink]);
                 update();
             }
         }
@@ -141,9 +140,7 @@ export function checkLink(node1: SimulationNode, node2: SimulationNode) {
     else return true;
 }
 
-
-export function addLinkToSVG(Mysvg: SVGElement, radius: number, newLink: SimulationLink[]): void {
-
+export function addLinkToSVG(radius: number, newLink: SimulationLink[]): void {
     const link = d3.select(Mysvg).selectAll("line")
         .data(newLink, (d: any) => d.source.id + "-" + d.target.id)
         .enter();
