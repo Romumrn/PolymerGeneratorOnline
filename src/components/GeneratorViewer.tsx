@@ -1,7 +1,7 @@
 import * as React from "react";
 import * as d3 from "d3";
 import CustomContextMenu from "./Viewer/CustomContextMenu";
-import { SimulationNode, SimulationLink, SimulationGroup } from './Form';
+import { SimulationNode, SimulationLink, SimulationGroup } from './SimulationType';
 import { initSVG, initSimulation, reloadSimulation } from './Viewer/SimulationSVGFunction';
 import { addNodeToSVG, addLinkToSVG, checkLink, setSVG } from './addNodeLink';
 import './GeneratorViewer.css';

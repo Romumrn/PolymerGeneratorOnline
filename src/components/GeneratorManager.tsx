@@ -2,7 +2,7 @@ import { Grid } from "@mui/material";
 import * as React from "react";
 import GeneratorMenu from './GeneratorMenu';
 import PolymerViewer from './GeneratorViewer';
-import { FormState, SimulationNode, SimulationLink } from './Form'
+import { FormState, SimulationNode, SimulationLink } from './SimulationType'
 
 // Pour plus tard
 //https://github.com/korydondzila/React-TypeScript-D3/tree/master/src/components
@@ -29,35 +29,46 @@ export default class GeneratorManager extends React.Component {
     return this.currentAvaibleID.toString()
   }
 
+  currentForceField = '';
+
   addnode = (toadd: FormState): void => {
-    const newMolecule: SimulationNode[] = [];
-    let newlinks = [];
-    // convert to node objt et injecte dans la list
-    for (let i = 0; i < toadd.numberToAdd; i++) {
-      let mol = {
-        "resname": toadd.moleculeToAdd,
-        "seqid": 0,
-        "id": this.generateID(),
-      };
-      newMolecule.push(mol)
+    //Check forcefield 
+    if ( (this.currentForceField === '') || (this.currentForceField === toadd.forcefield)) {
+      this.currentForceField  = toadd.forcefield;
+      const newMolecule: SimulationNode[] = [];
+      let newlinks = [];
+      // convert to node object et injecte dans la list
+      for (let i = 0; i < toadd.numberToAdd; i++) {
+        let mol = {
+          "resname": toadd.moleculeToAdd,
+          "seqid": 0,
+          "id": this.generateID(),
+        };
+        newMolecule.push(mol)
 
-      // If last molecule do not create link with the next mol
-      if (i > 0) {
-        newlinks.push({
-          "source": newMolecule[i - 1],
-          "target": newMolecule[i]
-        });
-        if (newMolecule[i - 1].links) newMolecule[i - 1].links!.push(newMolecule[i]);
-        else newMolecule[i - 1].links = [newMolecule[i]];
+        // If last molecule do not create link with the next mol
+        if (i > 0) {
+          newlinks.push({
+            "source": newMolecule[i - 1],
+            "target": newMolecule[i]
+          });
+          if (newMolecule[i - 1].links) newMolecule[i - 1].links!.push(newMolecule[i]);
+          else newMolecule[i - 1].links = [newMolecule[i]];
 
-        if (newMolecule[i].links) newMolecule[i].links!.push(newMolecule[i - 1]);
-        else newMolecule[i].links = [newMolecule[i - 1]];
-        // add to state
+          if (newMolecule[i].links) newMolecule[i].links!.push(newMolecule[i - 1]);
+          else newMolecule[i].links = [newMolecule[i - 1]];
+          // add to state
+        }
+
       }
-
+      this.setState({ links: newlinks });
+      this.setState({ nodes: newMolecule });
     }
-    this.setState({ links: newlinks });
-    this.setState({ nodes: newMolecule });
+    else{
+      alert( "Change forcefield to "+this.currentForceField )
+    }
+
+
   }
 
   addlink = (node1: SimulationNode, node2: SimulationNode): void => {
@@ -74,7 +85,6 @@ export default class GeneratorManager extends React.Component {
     this.setState({ links: newlinks });
   }
 
-
   removenode = (id: string): void => {
     //remove node with a copy of state
     var nodescopy = [...this.state.nodes];
@@ -86,7 +96,6 @@ export default class GeneratorManager extends React.Component {
     }
 
     //remove link with a copy of state
-
     let linkscopy = [...this.state.links];
     //first remove links of this node
     let indexlinktoremove = linkscopy.findIndex(e => (e.source.id === id) || (e.target.id === id));
@@ -102,17 +111,14 @@ export default class GeneratorManager extends React.Component {
 
   componentDidMount() {
     this.callBackendAPI()
-      .then((value: {}) => this.setState({ dataForForm: value}) )
+      .then((value: {}) => this.setState({ dataForForm: value }))
       .catch(err => console.log(err));
-    
-    console.log(this.state)
   }
   // fetching the GET route from the Express server which matches the GET route from server.js
   callBackendAPI = async () => {
     const response = await fetch('/data');
     const body = await response.json();
-    console.log( "fetch")
-    console.log(body)
+    console.log("load data forcefield")
     if (response.status !== 200) {
       throw Error(body.message)
     }
@@ -121,7 +127,6 @@ export default class GeneratorManager extends React.Component {
 
   render() {
     return (
-
       <div>
         <Grid container spacing={2}>
           <Grid item xs={4}>
@@ -131,9 +136,7 @@ export default class GeneratorManager extends React.Component {
             <PolymerViewer newNodes={this.state.nodes} newLinks={this.state.links} generateID={this.generateID} />
           </Grid>
         </Grid>
-
       </div>
-
     );
   }
 }

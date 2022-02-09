@@ -6,7 +6,7 @@ import MenuItem from "@mui/material/MenuItem";
 import InputLabel from "@mui/material/InputLabel";
 import Grain from "@mui/icons-material/Grain";
 import Insights from "@mui/icons-material/Insights";
-import { FormState } from './Form'
+import { FormState } from './SimulationType'
 import Typography from "@mui/material/Typography";
 
 interface propsmenu {
@@ -21,23 +21,27 @@ interface GeneratorMenuState extends FormState {
 }
 
 export default class GeneratorMenu extends React.Component<propsmenu, GeneratorMenuState> {
+
+  ffperdefault = (Object.keys(this.props.dataForceFieldMolecule)[0]);
+
+
   constructor(props: propsmenu) {
     // Required step: always call the parent class' constructor
     super(props);
 
+   
     // Set the state directly. Use props if necessary.
     this.state = {
-      forcefield: '',
+      forcefield: this.ffperdefault,
       moleculeToAdd: '',
       numberToAdd: 1,
       id1: undefined,
       id2: undefined,
     }
-    console.log(this.props);
   }
 
+
   GetMolFField(jsonformdata: any, ff: string): string[] {
-    console.log(jsonformdata)
     return jsonformdata[ff];
   }
 
@@ -55,11 +59,12 @@ export default class GeneratorMenu extends React.Component<propsmenu, GeneratorM
   }
 
   CheckNewMolecule(): void {
-    if (this.state.forcefield == null) {
+    if (this.state.forcefield === '') {
       alert("Field Forcefield null")
     }
-    else if (this.state.moleculeToAdd == null) {
-      alert("Field Molecule null")
+    else if (this.state.moleculeToAdd === '') {
+      alert("Molecule null")
+    //this.props.addnode
     }
     else {
       this.props.addnode(this.state)
@@ -91,11 +96,17 @@ export default class GeneratorMenu extends React.Component<propsmenu, GeneratorM
 
 
   render() {
-    const forcefieldDefault = Object.keys(this.props.dataForceFieldMolecule)[0];
+
     let forcefield = this.state.forcefield;
 
     const showMoleculeForm = () => {
       if (forcefield) {
+
+        // Define default molecule with forcefield value
+        const molDefault = this.GetMolFField(this.props.dataForceFieldMolecule, forcefield)[0];
+        //this.setState({ moleculeToAdd: molDefault })
+
+
         return <div>
           <p>Upload your previous polymer</p>
           <input type="file" id="docpicker" accept=".json" />
@@ -106,7 +117,7 @@ export default class GeneratorMenu extends React.Component<propsmenu, GeneratorM
             id="moleculeToAdd"
             label="Molecule"
             variant="outlined"
-            defaultValue={Object.keys(this.props.dataForceFieldMolecule)[0]}
+            defaultValue={molDefault}
             onChange={v => this.setState({ moleculeToAdd: v.target.value })}
           >
             {this.GetMolFField(this.props.dataForceFieldMolecule, forcefield).map(e => {
@@ -180,7 +191,7 @@ export default class GeneratorMenu extends React.Component<propsmenu, GeneratorM
             <InputLabel id="select-forcefield">forcefield</InputLabel>
             <Select
               id="select-forcefield"
-              defaultValue={forcefieldDefault}
+              defaultValue={''}
               onChange={
                 v => this.setState({ forcefield: v.target.value })
               }>

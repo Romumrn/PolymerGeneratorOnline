@@ -1,5 +1,5 @@
 import * as d3 from "d3";
-import { SimulationNode, SimulationLink, SimulationGroup } from '../Form';
+import { SimulationNode, SimulationLink, SimulationGroup } from '../SimulationType';
 
 export function initSVG(reference: SVGElement, size: number): void {
     console.log("InitSVG");

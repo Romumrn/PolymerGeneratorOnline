@@ -1,4 +1,4 @@
-import { SimulationNode, SimulationLink } from './Form';
+import { SimulationNode, SimulationLink } from './SimulationType';
 import * as d3 from "d3";
 
 
@@ -125,9 +125,7 @@ function hashStringToColor(str: string) {
 };
 
 export function checkLink(node1: SimulationNode, node2: SimulationNode) {
-    console.log("checkLink", node1, node2);
-    console.log(node1.id, node1.links);
-    console.log(node2.id, node2.links);
+    
     if ((node1.links === undefined) || (node2.links === undefined)) return true;
     else if (node1.links!.length >= 3) {
         alert("Node number #" + node1.id + "  too many links ");

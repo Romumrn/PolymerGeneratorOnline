@@ -4,7 +4,8 @@ import MenuItem from '@mui/material/MenuItem';
 import Divider from '@mui/material/Divider';
 import Typography from '@mui/material/Typography';
 import * as d3 from "d3";
-import { SimulationNode, SimulationLink } from '../Form';
+import { SimulationNode, SimulationLink } from '../SimulationType';
+import {exportJson} from '../generateJson';
 
 interface props {
     x: number;
@@ -19,38 +20,6 @@ interface props {
 }
 
 export default class CustomContextMenu extends React.Component<props> {
-
-    exportJson = (simulation: d3.Simulation<SimulationNode, SimulationLink>) => {
-        console.log("Download json ! ");
-        const myRawNodes = simulation.nodes();
-        //   {
-        //     "resname": "glucose",
-        //     "seqid": 0,
-        //     "id": 0
-        //  }
-        const myNodes = myRawNodes.map(obj => {
-            return {
-                "resname": obj.resname,
-                "seqid": 0,
-                "id": obj.id
-            }
-        });
-
-        const myJSON = JSON.stringify(myNodes);
-        const blob = new Blob([myJSON], { type: "text" });
-        const a = document.createElement("a");
-        a.download = "file.json";
-        a.href = window.URL.createObjectURL(blob);
-        const clickEvt = new MouseEvent("click", {
-            view: window,
-            bubbles: true,
-            cancelable: true,
-        });
-        a.dispatchEvent(clickEvt);
-        a.remove();
-        this.setState({ show: false });
-        this.props.handleClose();
-    }
 
     giveConnexeNode = (node: SimulationNode, svg: d3.Selection<SVGSVGElement, unknown, null, undefined>) => {
         //Give one node and class on focus rest of polymer nodes 
@@ -225,7 +194,7 @@ export default class CustomContextMenu extends React.Component<props> {
                 open={true} >
                 {this.ifnode()}
                 {this.ifSelectedNode()}
-                <MenuItem onClick={() => { this.exportJson(this.props.simulation) }}>Download Json</MenuItem>
+                <MenuItem onClick={() => { exportJson(this.props.simulation) ; this.props.handleClose();}}>Download Json</MenuItem>
                 <MenuItem onClick={this.props.handleClose}>Super mega idea</MenuItem>
                 <MenuItem onClick={this.props.handleClose}>Close</MenuItem>
             </Menu>
