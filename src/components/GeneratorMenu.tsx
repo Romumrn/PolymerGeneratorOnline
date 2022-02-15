@@ -8,6 +8,7 @@ import Grain from "@mui/icons-material/Grain";
 import Insights from "@mui/icons-material/Insights";
 import { FormState } from './SimulationType'
 import Typography from "@mui/material/Typography";
+import Warning from "./warning";
 
 interface propsmenu {
   addnode: (arg0: FormState) => void,
@@ -18,25 +19,23 @@ interface propsmenu {
 interface GeneratorMenuState extends FormState {
   id1: string | undefined;
   id2: string | undefined;
+  Warningmessage: string;
 }
 
 export default class GeneratorMenu extends React.Component<propsmenu, GeneratorMenuState> {
-
-  ffperdefault = (Object.keys(this.props.dataForceFieldMolecule)[0]);
-
 
   constructor(props: propsmenu) {
     // Required step: always call the parent class' constructor
     super(props);
 
-   
     // Set the state directly. Use props if necessary.
     this.state = {
-      forcefield: this.ffperdefault,
-      moleculeToAdd: '',
+      forcefield: "",
+      moleculeToAdd: "",
       numberToAdd: 1,
       id1: undefined,
       id2: undefined,
+      Warningmessage: "",
     }
   }
 
@@ -48,10 +47,10 @@ export default class GeneratorMenu extends React.Component<propsmenu, GeneratorM
   explosion(): void {
     console.log("Boom");
     if (this.state.forcefield == null) {
-      alert("Field Forcefield null")
+      this.setState({ Warningmessage: "Field Forcefield null" })
     }
     else if (this.state.moleculeToAdd == null) {
-      alert("Field Molecule null")
+      this.setState({ Warningmessage: "Field Molecule null" })
     }
     else {
       this.props.addnode({ forcefield: this.state.forcefield, moleculeToAdd: this.state.moleculeToAdd, numberToAdd: 1000 })
@@ -60,11 +59,11 @@ export default class GeneratorMenu extends React.Component<propsmenu, GeneratorM
 
   CheckNewMolecule(): void {
     if (this.state.forcefield === '') {
-      alert("Field Forcefield null")
+      this.setState({ Warningmessage: "Field Forcefield null" })
     }
     else if (this.state.moleculeToAdd === '') {
-      alert("Molecule null")
-    //this.props.addnode
+      this.setState({ Warningmessage: "Field Molecule null" })
+      //this.props.addnode
     }
     else {
       this.props.addnode(this.state)
@@ -75,7 +74,7 @@ export default class GeneratorMenu extends React.Component<propsmenu, GeneratorM
     // check undefined value : 
 
     if ((typeof (idLink1) == 'undefined') || (typeof (idLink2) == 'undefined')) {
-      alert("Problem link : id number undefined")
+      this.setState({ Warningmessage: "Problem link : id number undefined" })
     }
     else {
       //Load list of Id avaible and check 
@@ -89,7 +88,7 @@ export default class GeneratorMenu extends React.Component<propsmenu, GeneratorM
         this.props.addlink(idLink1, idLink2)
       }
       else {
-        alert("Problem link : id number out of avaible id")
+        this.setState({ Warningmessage: "Problem link : id number out of avaible id" })
       }
     }
   }
@@ -102,22 +101,21 @@ export default class GeneratorMenu extends React.Component<propsmenu, GeneratorM
     const showMoleculeForm = () => {
       if (forcefield) {
 
-        // Define default molecule with forcefield value
-        const molDefault = this.GetMolFField(this.props.dataForceFieldMolecule, forcefield)[0];
-        //this.setState({ moleculeToAdd: molDefault })
-
+        // // Define default molecule with forcefield value
+        // const molDefault = this.GetMolFField(this.props.dataForceFieldMolecule, forcefield)[0];
+        // //this.setState({ moleculeToAdd: molDefault })
 
         return <div>
-          <p>Upload your previous polymer</p>
+          <Typography>Upload your previous polymer</Typography>
           <input type="file" id="docpicker" accept=".json" />
 
-          <p>Add your molecule : </p>
+          <Typography> Add your molecule : </Typography>
 
           <Select
             id="moleculeToAdd"
             label="Molecule"
             variant="outlined"
-            defaultValue={molDefault}
+            defaultValue={''}
             onChange={v => this.setState({ moleculeToAdd: v.target.value })}
           >
             {this.GetMolFField(this.props.dataForceFieldMolecule, forcefield).map(e => {
@@ -143,7 +141,7 @@ export default class GeneratorMenu extends React.Component<propsmenu, GeneratorM
             add
           </Button>
 
-          <p>Add a new link : </p>
+          <Typography>Add a new link : </Typography>
 
           <TextField
             label="id1"
@@ -179,19 +177,19 @@ export default class GeneratorMenu extends React.Component<propsmenu, GeneratorM
     return (
       <div>
         {this.props.dataForceFieldMolecule === {} ? (
-          <Typography >
-            <p>Loading ...</p>
+          <Typography   >
+            Loading ...
           </Typography>
         ) :
           (<form>
-            <Typography >
-              <p>Choose your forcefield :</p>
+            <Typography  >
+              Choose your forcefield :
             </Typography>
 
             <InputLabel id="select-forcefield">forcefield</InputLabel>
             <Select
               id="select-forcefield"
-              defaultValue={''}
+              defaultValue={""}
               onChange={
                 v => this.setState({ forcefield: v.target.value })
               }>
@@ -208,8 +206,8 @@ export default class GeneratorMenu extends React.Component<propsmenu, GeneratorM
             }
 
 
-            <Typography >
-              <p> Explication : </p>
+            <Typography component={'div'}>
+
               <ul>
                 <li>Create a new link : Move the node</li>
                 <li>Remove : click on a node or a link</li>
@@ -217,6 +215,7 @@ export default class GeneratorMenu extends React.Component<propsmenu, GeneratorM
               </ul>
             </Typography>
 
+            <Warning message={this.state.Warningmessage} close={() => { this.setState({ Warningmessage: "" }) }}></Warning>
 
             <Button id="explosion" variant="contained" color="error" endIcon={<Grain />} onClick={() => this.explosion()}>
               Boom

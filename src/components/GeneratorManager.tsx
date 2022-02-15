@@ -3,6 +3,7 @@ import * as React from "react";
 import GeneratorMenu from './GeneratorMenu';
 import PolymerViewer from './GeneratorViewer';
 import { FormState, SimulationNode, SimulationLink } from './SimulationType'
+import Warning from "./warning";
 
 // Pour plus tard
 //https://github.com/korydondzila/React-TypeScript-D3/tree/master/src/components
@@ -10,6 +11,7 @@ import { FormState, SimulationNode, SimulationLink } from './SimulationType'
 // Objectif : faire pareil avec element selectionnable dans le bloc menu et ajoutable dans le bloc viewer si deposer
 //https://javascript.plainenglish.io/how-to-implement-drag-and-drop-from-react-to-svg-d3-16700f01470c
 interface StateSimulation {
+  Warningmessage: string;
   nodes: SimulationNode[],
   links: SimulationLink[],
   dataForForm: {},
@@ -21,6 +23,7 @@ export default class GeneratorManager extends React.Component {
     nodes: [],
     links: [],
     dataForForm: {},
+    Warningmessage: ""
   }
 
   currentAvaibleID = 0;
@@ -33,8 +36,8 @@ export default class GeneratorManager extends React.Component {
 
   addnode = (toadd: FormState): void => {
     //Check forcefield 
-    if ( (this.currentForceField === '') || (this.currentForceField === toadd.forcefield)) {
-      this.currentForceField  = toadd.forcefield;
+    if ((this.currentForceField === '') || (this.currentForceField === toadd.forcefield)) {
+      this.currentForceField = toadd.forcefield;
       const newMolecule: SimulationNode[] = [];
       let newlinks = [];
       // convert to node object et injecte dans la list
@@ -64,8 +67,9 @@ export default class GeneratorManager extends React.Component {
       this.setState({ links: newlinks });
       this.setState({ nodes: newMolecule });
     }
-    else{
-      alert( "Change forcefield to "+this.currentForceField )
+    else {
+
+     this.setState( { Warningmessage : "Change forcefield to " + this.currentForceField })
     }
 
 
@@ -113,6 +117,7 @@ export default class GeneratorManager extends React.Component {
     this.callBackendAPI()
       .then((value: {}) => this.setState({ dataForForm: value }))
       .catch(err => console.log(err));
+
   }
   // fetching the GET route from the Express server which matches the GET route from server.js
   callBackendAPI = async () => {
@@ -128,6 +133,7 @@ export default class GeneratorManager extends React.Component {
   render() {
     return (
       <div>
+        <Warning message={this.state.Warningmessage} close={() => { this.setState({ Warningmessage: "" }) }}></Warning>
         <Grid container spacing={2}>
           <Grid item xs={4}>
             <GeneratorMenu addnode={this.addnode} addlink={this.addlink} dataForceFieldMolecule={this.state.dataForForm} />
@@ -136,6 +142,7 @@ export default class GeneratorManager extends React.Component {
             <PolymerViewer newNodes={this.state.nodes} newLinks={this.state.links} generateID={this.generateID} />
           </Grid>
         </Grid>
+
       </div>
     );
   }

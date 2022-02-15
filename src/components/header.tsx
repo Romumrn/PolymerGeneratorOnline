@@ -9,7 +9,7 @@ export default class Header extends React.Component {
         return (
             <AppBar position="static">
                 <Toolbar variant="regular">
-                    <Typography> <h1>Polymer Generator</h1> </Typography>
+                    <Typography variant="h3" >  Polymer Generator  </Typography>
                 </Toolbar>
             </AppBar>
         )
