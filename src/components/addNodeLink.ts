@@ -7,7 +7,7 @@ export function setSVG(svgref: SVGElement) {
     Mysvg = svgref;
 }
 
-export function addNodeToSVG(radius: number, newnode: SimulationNode[], simulation: any, update: () => void) {
+export function addNodeToSVG(radius: number, newnode: SimulationNode[], simulation: any, update: () => void, warningfunction: (arg0: string) => void) {
     const node = d3.select(Mysvg).selectAll("circle")
         .data(newnode, (d: any) => d.id)
         .enter();
@@ -75,7 +75,7 @@ export function addNodeToSVG(radius: number, newnode: SimulationNode[], simulati
 
         const closest = incontact(d)
         if (closest) {
-            if (checkLink(d, closest)) {
+            if (checkLink(d, closest, warningfunction)) {
                 const newlink = { source: d, target: closest }
 
                 if (d.links) d.links.push(closest);
@@ -124,15 +124,17 @@ function hashStringToColor(str: string) {
     return "#" + ("0" + r.toString(16)).substr(-2) + ("0" + g.toString(16)).substr(-2) + ("0" + b.toString(16)).substr(-2);
 };
 
-export function checkLink(node1: SimulationNode, node2: SimulationNode) {
-    
+export function checkLink(node1: SimulationNode, node2: SimulationNode, warningfunction: (arg0: string) => void) {
+
     if ((node1.links === undefined) || (node2.links === undefined)) return true;
-    else if (node1.links!.length >= 3) {
-        alert("Node number #" + node1.id + "  too many links ");
+    else if (node1.links!.length > 3) {
+        console.log(node1)
+        warningfunction("Node number #" + node1.id + "  too many links ")
         return false;
     }
-    else if (node2.links!.length >= 3) {
-        alert("Node number #" + node2.id + "  too many links ");
+    else if (node2.links!.length > 3) {
+        console.log(node2)
+        warningfunction("Node number #" + node2.id + "  too many links ")
         return false;
     }
     else return true;

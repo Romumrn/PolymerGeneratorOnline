@@ -11,6 +11,7 @@ import Typography from "@mui/material/Typography";
 import Warning from "./warning";
 
 interface propsmenu {
+  addnodeFromJson: (jsondata: JSON) => void,
   addnode: (arg0: FormState) => void,
   addlink: (arg1: any, arg2: any) => void,
   dataForceFieldMolecule: {} | JSON,
@@ -38,7 +39,6 @@ export default class GeneratorMenu extends React.Component<propsmenu, GeneratorM
       Warningmessage: "",
     }
   }
-
 
   GetMolFField(jsonformdata: any, ff: string): string[] {
     return jsonformdata[ff];
@@ -77,20 +77,29 @@ export default class GeneratorMenu extends React.Component<propsmenu, GeneratorM
       this.setState({ Warningmessage: "Problem link : id number undefined" })
     }
     else {
-      //Load list of Id avaible and check 
-      //first generate fake list 
-      const avaibleLink = [];
-      for (let i = 0; i <= 100; i++) {
-        avaibleLink.push(i);
-      }
-
-      if ((idLink1! in avaibleLink) && (idLink2! in avaibleLink)) {
-        this.props.addlink(idLink1, idLink2)
-      }
-      else {
-        this.setState({ Warningmessage: "Problem link : id number out of avaible id" })
-      }
+      this.props.addlink(idLink1, idLink2)
     }
+  }
+
+  handleUpload = (selectorFiles: FileList) => {
+    if (selectorFiles.length === 1) {
+      let file = selectorFiles[0]
+      if (file.type && !file.type.startsWith('application/json')) {
+        this.setState({ Warningmessage: 'File is not Json. ' + file.type });
+        return;
+      }
+      let reader = new FileReader();
+      reader.onload = (event: any) => {
+        let obj = JSON.parse(event.target.result);
+        this.props.addnodeFromJson(obj);
+      }
+      reader.readAsText(file);
+    }
+    else {
+      this.setState({ Warningmessage: "Only one files should be upload" })
+      console.log(selectorFiles)
+    }
+
   }
 
 
@@ -101,13 +110,24 @@ export default class GeneratorMenu extends React.Component<propsmenu, GeneratorM
     const showMoleculeForm = () => {
       if (forcefield) {
 
-        // // Define default molecule with forcefield value
-        // const molDefault = this.GetMolFField(this.props.dataForceFieldMolecule, forcefield)[0];
-        // //this.setState({ moleculeToAdd: molDefault })
-
         return <div>
           <Typography>Upload your previous polymer</Typography>
-          <input type="file" id="docpicker" accept=".json" />
+
+
+          <Button
+            variant="contained"
+            component="label"
+          >
+            Upload File
+            <input
+              onChange={(e: any) => this.handleUpload(e.target.files)}
+              type="file"
+              hidden
+            />
+          </Button>
+
+
+          <Typography variant="h4" > Or  </Typography>
 
           <Typography> Add your molecule : </Typography>
 
@@ -164,8 +184,7 @@ export default class GeneratorMenu extends React.Component<propsmenu, GeneratorM
             endIcon={<Insights />}
             id="addlink"
             variant="contained"
-            // onClick={() => this.CheckNewLink(this.state.id1, this.state.id2)}>
-            onClick={() => alert("Out of service")}>
+            onClick={() => this.CheckNewLink(this.state.id1, this.state.id2)}>
             Add link
           </Button>
         </div>

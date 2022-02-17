@@ -36,8 +36,7 @@ import { SimulationNode, SimulationLink } from './SimulationType';
 //     ]
 // }
 
-export function exportJson(simulation: d3.Simulation<SimulationNode, SimulationLink>) {
-    console.log("Download json ! ");
+function simulationToJsonBlob(simulation: d3.Simulation<SimulationNode, SimulationLink>) {
     const debutstr = '{"directed": false, "multigraph": false, "graph": {}, "nodes": '
     const myRawNodes = simulation.nodes();
     //   {
@@ -53,11 +52,11 @@ export function exportJson(simulation: d3.Simulation<SimulationNode, SimulationL
         }
     });
 
-    let myLinks : any[] = [];
+    let myLinks: any[] = [];
     for (let node of myRawNodes) {
         for (let link of node.links!) {
             //filter existing link
-            if ( myLinks.filter(e => ((e.target === node.id) && (e.source === link.id))).length === 0) {
+            if (myLinks.filter(e => ((e.target === node.id) && (e.source === link.id))).length === 0) {
                 myLinks.push({
                     "source": node.id,
                     "target": link.id,
@@ -71,6 +70,13 @@ export function exportJson(simulation: d3.Simulation<SimulationNode, SimulationL
     // Faire jolie variable json plutot que des str 
     const myJSON = debutstr + JSON.stringify(myNodes) + ',"links":' + JSON.stringify(myLinks) + '}';
     const blob = new Blob([myJSON], { type: "text" });
+    return blob
+}
+
+export function DownloadJson(simulation: d3.Simulation<SimulationNode, SimulationLink>) {
+    console.log("Download json ! ");
+
+    const blob = simulationToJsonBlob(simulation)
     const a = document.createElement("a");
     a.download = "file.json";
     a.href = window.URL.createObjectURL(blob);
@@ -81,4 +87,22 @@ export function exportJson(simulation: d3.Simulation<SimulationNode, SimulationL
     });
     a.dispatchEvent(clickEvt);
     a.remove();
+}
+
+
+export function PolyplyJson(simulation: d3.Simulation<SimulationNode, SimulationLink>) {
+    const blob = simulationToJsonBlob(simulation)
+    console.log("blob")
+    console.log(blob)
+    // fetching the GET route from the Express server which matches the GET route from server.js
+
+    console.log(blob)
+   
+    fetch('/sendjson', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json;charset=utf-8'
+        },
+        body: blob
+      });
 }

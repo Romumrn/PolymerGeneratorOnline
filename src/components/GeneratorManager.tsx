@@ -11,17 +11,19 @@ import Warning from "./warning";
 // Objectif : faire pareil avec element selectionnable dans le bloc menu et ajoutable dans le bloc viewer si deposer
 //https://javascript.plainenglish.io/how-to-implement-drag-and-drop-from-react-to-svg-d3-16700f01470c
 interface StateSimulation {
+  currantNodes: SimulationNode[],
   Warningmessage: string;
-  nodes: SimulationNode[],
-  links: SimulationLink[],
+  nodesToAdd: SimulationNode[],
+  linksToAdd: SimulationLink[],
   dataForForm: {},
 }
 
 export default class GeneratorManager extends React.Component {
 
   state: StateSimulation = {
-    nodes: [],
-    links: [],
+    currantNodes: [],
+    nodesToAdd: [],
+    linksToAdd: [],
     dataForForm: {},
     Warningmessage: ""
   }
@@ -33,6 +35,47 @@ export default class GeneratorManager extends React.Component {
   }
 
   currentForceField = '';
+
+  addnodeFromJson = (jsonFile: any): void => {
+    // Waring !! 
+    // Attention a l'id qui est different entre la nouvelle representation et l'ancien json 
+    // besoin de faire une table de correspondance ancien et nouveau id
+    const idModification: Record<string, string | number>[] = [];
+
+    const newMolecule: SimulationNode[] = [];
+    for (let node of jsonFile.nodes) {
+      const newid = this.generateID()
+      idModification.push({
+        oldID: node.id,
+        newID: newid,
+      })
+
+      node.id = newid
+      newMolecule.push(node)
+    }
+
+    let newlinks = []
+    for (let link of jsonFile.links) {
+      //Transform old id to new id ! 
+      const sourceNewID = idModification.filter((d: any) => (d.oldID === link.source))[0].newID
+      const targetNewID = idModification.filter((d: any) => (d.oldID === link.target))[0].newID
+      let node1 = newMolecule.filter((d: SimulationNode) => (d.id === sourceNewID))[0]
+      let node2 = newMolecule.filter((d: SimulationNode) => (d.id === targetNewID))[0]
+      newlinks.push({
+        "source": node1,
+        "target": node2
+      });
+
+      if (node1.links) node1.links.push(node2);
+      else node1.links = [node2];
+
+      if (node2.links) node2.links.push(node1);
+      else node2.links = [node1];
+
+    }
+    this.setState({ links: newlinks });
+    this.setState({ nodesToAdd: newMolecule });
+  }
 
   addnode = (toadd: FormState): void => {
     //Check forcefield 
@@ -64,18 +107,32 @@ export default class GeneratorManager extends React.Component {
         }
 
       }
-      this.setState({ links: newlinks });
-      this.setState({ nodes: newMolecule });
+      this.setState({ linksToAdd: newlinks });
+      this.setState({ nodesToAdd: newMolecule });
     }
     else {
 
-     this.setState( { Warningmessage : "Change forcefield to " + this.currentForceField })
+      this.setState({ Warningmessage: "Change forcefield to " + this.currentForceField })
     }
 
 
   }
 
-  addlink = (node1: SimulationNode, node2: SimulationNode): void => {
+  addlink = (id1: string, id2: string): void => {
+    //1st step find correspondant nodes objects 
+    const listnode = this.state.currantNodes.concat(this.state.nodesToAdd);
+    const node1 = listnode.find(element => element.id === id1);
+    const node2 = listnode.find(element => element.id === id2);
+
+    console.log(listnode, node1, node2)
+    if (node1 === undefined) {
+      this.setState({ Warningmessage: "Nodes id number " + id1 + " does not exist" });
+      return
+    }
+    if (node2 === undefined) {
+      this.setState({ Warningmessage: "Nodes id number " + id2 + " does not exist" });
+      return
+    }
     let newlinks = [{
       "source": node1,
       "target": node2
@@ -86,21 +143,23 @@ export default class GeneratorManager extends React.Component {
     if (node2.links) node2.links.push(node1);
     else node2.links = [node1];
 
-    this.setState({ links: newlinks });
+    this.setState({ linksToAdd: newlinks });
   }
+
+
 
   removenode = (id: string): void => {
     //remove node with a copy of state
-    var nodescopy = [...this.state.nodes];
+    var nodescopy = [...this.state.nodesToAdd];
     var index = nodescopy.findIndex(node => (node.id === id));
     console.log("Remove node ", id);
     if (index !== -1) {
       nodescopy.splice(index, 1);
-      this.setState({ nodes: nodescopy });
+      this.setState({ nodesToAdd: nodescopy });
     }
 
     //remove link with a copy of state
-    let linkscopy = [...this.state.links];
+    let linkscopy = [...this.state.linksToAdd];
     //first remove links of this node
     let indexlinktoremove = linkscopy.findIndex(e => (e.source.id === id) || (e.target.id === id));
     //si index = -1, pas de lien trouvé
@@ -110,15 +169,15 @@ export default class GeneratorManager extends React.Component {
         indexlinktoremove = linkscopy.findIndex(e => (e.source.id === id) || (e.target.id === id));
       } while (indexlinktoremove !== -1); // tant qu'il reste des links
     }
-    this.setState({ links: linkscopy });
+    this.setState({ linksToAdd: linkscopy });
   }
 
   componentDidMount() {
     this.callBackendAPI()
       .then((value: {}) => this.setState({ dataForForm: value }))
       .catch(err => console.log(err));
-
   }
+
   // fetching the GET route from the Express server which matches the GET route from server.js
   callBackendAPI = async () => {
     const response = await fetch('/data');
@@ -136,10 +195,11 @@ export default class GeneratorManager extends React.Component {
         <Warning message={this.state.Warningmessage} close={() => { this.setState({ Warningmessage: "" }) }}></Warning>
         <Grid container spacing={2}>
           <Grid item xs={4}>
-            <GeneratorMenu addnode={this.addnode} addlink={this.addlink} dataForceFieldMolecule={this.state.dataForForm} />
+            <GeneratorMenu addnodeFromJson={this.addnodeFromJson} addnode={this.addnode} addlink={this.addlink} dataForceFieldMolecule={this.state.dataForForm} />
           </Grid>
           <Grid item xs={8}>
-            <PolymerViewer newNodes={this.state.nodes} newLinks={this.state.links} generateID={this.generateID} />
+            <PolymerViewer getNodes={(nodesList: SimulationNode[]) => { this.setState({ currantNodes: nodesList }) }}
+              newNodes={this.state.nodesToAdd} newLinks={this.state.linksToAdd} generateID={this.generateID} />
           </Grid>
         </Grid>
 

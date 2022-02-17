@@ -5,12 +5,13 @@ import { SimulationNode, SimulationLink, SimulationGroup } from './SimulationTyp
 import { initSVG, initSimulation, reloadSimulation } from './Viewer/SimulationSVGFunction';
 import { addNodeToSVG, addLinkToSVG, checkLink, setSVG } from './addNodeLink';
 import './GeneratorViewer.css';
-
+import Warning from "./warning";
 
 interface propsviewer {
   newNodes: SimulationNode[];
   newLinks: SimulationLink[];
   generateID: () => string;
+  getNodes: ( arg : SimulationNode[] ) =>void;
 }
 
 interface statecustommenu {
@@ -19,11 +20,19 @@ interface statecustommenu {
   nodeClick: SimulationNode | undefined,
   nodeToRemove: SimulationNode[],
   show: boolean,
+  Warningmessage: string
 }
 
 export default class GeneratorViewer extends React.Component<propsviewer, statecustommenu> {
 
-  state: statecustommenu = { x: 0, y: 0, nodeClick: undefined, show: false, nodeToRemove: [] };
+  state: statecustommenu = {
+    x: 0,
+    y: 0,
+    nodeClick: undefined,
+    show: false,
+    nodeToRemove: [],
+    Warningmessage: ''
+  };
 
   // Ajouter un point d'exclamation veut dire qu'on est sur que la valeur n'est pas nul
   ref!: SVGSVGElement;
@@ -60,7 +69,7 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
       const zoomValue = event.transform.k;
       //On modifie le rayon en fonction du zoom 
       this.currentnodeRadius = this.nodeRadius * zoomValue;
-      console.log(zoomValue);
+      console.log("zoom value", zoomValue);
 
       mySVG.selectAll("circle")
         .attr("r", this.currentnodeRadius)
@@ -84,12 +93,11 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
 
   componentDidUpdate(prevProps: propsviewer, prevStates: statecustommenu) {
     console.log("componentDidUpdate");
-
+    
     //Check state and props 
     if ((prevProps.newNodes === this.props.newNodes) && (prevProps.newLinks === this.props.newLinks)) {
     }
     else {
-      console.log(this.props)
       this.UpdateSVG();
     }
 
@@ -108,31 +116,11 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
   UpdateSVG = () => {
     const svgContext = d3.select(this.ref);
 
-    // // Check if we need to remove nodes in state.nodeToRemove
-    // if (this.state.nodeToRemove.length > 0) {
-    //   console.log("To remove : ", this.state.nodeToRemove);
-    //   for (const node of this.state.nodeToRemove) {
-    //     //remove link in object node
-    //     if (node.links !== undefined) {
-    //       for (let linkednode of node.links) {
-    //         console.log("linkednode", linkednode);
-    //         //remove link between node and removed node
-    //         linkednode.links = linkednode.links!.filter((nodeToRM: SimulationNode) => !this.state.nodeToRemove.includes(nodeToRM));
-    //       }
-    //     }
-    //     svgContext.selectAll<SVGCircleElement, SimulationNode>("circle").filter((d: SimulationNode) => (d.id === node.id)).remove();
-    //     //and then remove link inside svg
-    //     svgContext.selectAll("line").filter((link: any) => ((link.source.id === node.id) || (link.target.id === node.id))).remove();
-    //   }
-    //   this.setState({ nodeToRemove: [], nodeClick: undefined });
-    //   return;
-    // }
-
     // Verifier si on doit bien ajouter des props ou si c'est deja fait 
     if (this.prevPropsNewLink !== this.props.newLinks) {
       let checkedLinktoadd: SimulationLink[] = [];
       for (let link of this.props.newLinks) {
-        if (checkLink(link.source, link.target)) {
+        if (checkLink(link.source, link.target, this.warningfunction)) {
           checkedLinktoadd.push(link)
         }
       }
@@ -141,7 +129,7 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
 
     // Si des news props apparaissent depuis manager on ajoute les noeuds !!!
     if (this.prevPropsNewnode !== this.props.newNodes) {
-      addNodeToSVG(this.currentnodeRadius, this.props.newNodes, this.simulation, this.handleUpdateSVG)
+      addNodeToSVG(this.currentnodeRadius, this.props.newNodes, this.simulation, this.handleUpdateSVG, this.warningfunction)
 
       //Keep the previous props in memory
       this.prevPropsNewLink = this.props.newLinks;
@@ -175,6 +163,7 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
       }
     }
 
+    this.props.getNodes(this.simulation.nodes())
     reloadSimulation(svgContext, this.simulation, groups)
 
   }
@@ -183,11 +172,11 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
     this.setState({ show: false, nodeClick: undefined })
   };
 
-
   pasteSelectedNode = (listNodesToPaste: any) => {
     console.log("pasteSelectedNode")
     const idModification: Record<string, string | number>[] = [];
     let oldNodes: SimulationNode[] = []
+    // on parcours la selection svg des noeuds a copier et on inscrit l'ancien id et le nouveau dans une liste idModification
     listNodesToPaste
       .each((d: SimulationNode) => {
         oldNodes.push(d)
@@ -198,6 +187,9 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
         })
       });
 
+    console.log("listNodesToPaste", listNodesToPaste);
+    console.log("oldNodes", oldNodes);
+    console.log("idModification", idModification);
     //Create new node
     let newNodes = []
     for (let node of oldNodes) {
@@ -212,7 +204,9 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
       newNodes.push(newNode)
     }
 
-    addNodeToSVG(this.currentnodeRadius, newNodes, this.simulation, this.handleUpdateSVG)
+    console.log("newNodes", newNodes)
+
+    addNodeToSVG(this.currentnodeRadius, newNodes, this.simulation, this.handleUpdateSVG, this.warningfunction)
     // and then addLink
     // create newlink
     let newlinks: SimulationLink[] = []
@@ -222,19 +216,22 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
       if (oldnode.links !== undefined) {
         for (let oldnodelink of oldnode.links) {
           //parmis tous les liens de l'ancien noeud je parcours et j'en creer de nouveau 
-          let newtargetid = idModification.filter((d: any) => (d.oldID === oldnodelink.id))[0].newID
-          const newnodetarget = newNodes.filter((d: any) => (d.id === newtargetid))[0]
-          let newlink: SimulationLink = {
-            source: newnodesource,
-            target: newnodetarget
+          let newtarget = idModification.filter((d: any) => (d.oldID === oldnodelink.id))[0]
+          if (newtarget) {
+            const newnodetarget = newNodes.filter((d: any) => (d.id === newtarget.newID))[0]
+            let newlink: SimulationLink = {
+              source: newnodesource,
+              target: newnodetarget
+            }
+            //check if the link doesnt exist 
+            newlinks.push(newlink)
+            // Link ajouté en double Il faut check si les source target ne sont pas identiques
+            if (newnodesource.links === undefined) newnodesource.links = [newnodetarget]
+            else newnodesource.links!.push(newnodetarget)
           }
-          //check if the link doesnt exist 
-          newlinks.push(newlink)
-          // Link ajouté en double Il faut check si les source target ne sont pas identiques
-          if (newnodesource.links === undefined) newnodesource.links = [newnodetarget]
-          else newnodesource.links!.push(newnodetarget)
         }
       }
+
     }
     addLinkToSVG(this.currentnodeRadius, newlinks)
     this.UpdateSVG()
@@ -258,6 +255,10 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
   handleUpdateSVG = () => {
     this.UpdateSVG()
   };
+
+  warningfunction = (message: string) => {
+    this.setState({ Warningmessage: message })
+  }
 
   render() {
 
@@ -293,6 +294,8 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
         ref={(ref: HTMLDivElement) => this.frame = ref} >
 
         <svg className="container" id="svg" ref={(ref: SVGSVGElement) => this.ref = ref}></svg>
+
+        <Warning message={this.state.Warningmessage} close={() => { this.setState({ Warningmessage: "" }) }}></Warning>
 
         {ifContextMenuShouldAppear(this.state.show)}
 
