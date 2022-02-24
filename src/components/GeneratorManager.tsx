@@ -4,6 +4,7 @@ import GeneratorMenu from './GeneratorMenu';
 import PolymerViewer from './GeneratorViewer';
 import { FormState, SimulationNode, SimulationLink } from './SimulationType'
 import Warning from "./warning";
+import { PolyplyJson } from './generateJson';
 
 // Pour plus tard
 //https://github.com/korydondzila/React-TypeScript-D3/tree/master/src/components
@@ -11,7 +12,7 @@ import Warning from "./warning";
 // Objectif : faire pareil avec element selectionnable dans le bloc menu et ajoutable dans le bloc viewer si deposer
 //https://javascript.plainenglish.io/how-to-implement-drag-and-drop-from-react-to-svg-d3-16700f01470c
 interface StateSimulation {
-  currantNodes: SimulationNode[],
+  Simulation: d3.Simulation<SimulationNode, SimulationLink> | undefined,
   Warningmessage: string;
   nodesToAdd: SimulationNode[],
   linksToAdd: SimulationLink[],
@@ -21,14 +22,14 @@ interface StateSimulation {
 export default class GeneratorManager extends React.Component {
 
   state: StateSimulation = {
-    currantNodes: [],
+    Simulation: undefined,
     nodesToAdd: [],
     linksToAdd: [],
     dataForForm: {},
     Warningmessage: ""
   }
 
-  currentAvaibleID = 0;
+  currentAvaibleID = -1;
   generateID = (): string => {
     this.currentAvaibleID++;
     return this.currentAvaibleID.toString()
@@ -73,7 +74,7 @@ export default class GeneratorManager extends React.Component {
       else node2.links = [node1];
 
     }
-    this.setState({ links: newlinks });
+    this.setState({ linksToAdd: newlinks });
     this.setState({ nodesToAdd: newMolecule });
   }
 
@@ -120,9 +121,9 @@ export default class GeneratorManager extends React.Component {
 
   addlink = (id1: string, id2: string): void => {
     //1st step find correspondant nodes objects 
-    const listnode = this.state.currantNodes.concat(this.state.nodesToAdd);
-    const node1 = listnode.find(element => element.id === id1);
-    const node2 = listnode.find(element => element.id === id2);
+    const listnode = this.state.Simulation?.nodes().concat(this.state.nodesToAdd);
+    const node1 = listnode?.find(element => element.id === id1);
+    const node2 = listnode?.find(element => element.id === id2);
 
     console.log(listnode, node1, node2)
     if (node1 === undefined) {
@@ -172,15 +173,26 @@ export default class GeneratorManager extends React.Component {
     this.setState({ linksToAdd: linkscopy });
   }
 
+  sendToServer = (): void => {
+    console.log("Go to server");
+    if (this.state.Simulation === undefined) {
+      this.setState({ Warningmessage: "GIUILYHEB ?HJCBFKEYBEHGCKL" })
+    }
+    else {
+      PolyplyJson(this.state.Simulation!, this.currentForceField)
+    }
+
+  }
+
   componentDidMount() {
     this.callBackendAPI()
-      .then((value: {}) => this.setState({ dataForForm: value }))
-      .catch(err => console.log(err));
+      .then((value: any) => this.setState({ dataForForm: value }))
+      .catch(err => { console.log(err); this.setState({ dataForForm: {} }) });
   }
 
   // fetching the GET route from the Express server which matches the GET route from server.js
   callBackendAPI = async () => {
-    const response = await fetch('/data');
+    const response = await fetch('/api/data');
     const body = await response.json();
     console.log("load data forcefield")
     if (response.status !== 200) {
@@ -195,11 +207,20 @@ export default class GeneratorManager extends React.Component {
         <Warning message={this.state.Warningmessage} close={() => { this.setState({ Warningmessage: "" }) }}></Warning>
         <Grid container spacing={2}>
           <Grid item xs={4}>
-            <GeneratorMenu addnodeFromJson={this.addnodeFromJson} addnode={this.addnode} addlink={this.addlink} dataForceFieldMolecule={this.state.dataForForm} />
+            <GeneratorMenu
+              addnodeFromJson={this.addnodeFromJson}
+              addnode={this.addnode}
+              addlink={this.addlink}
+              send={this.sendToServer}
+              dataForceFieldMolecule={this.state.dataForForm} />
           </Grid>
           <Grid item xs={8}>
-            <PolymerViewer getNodes={(nodesList: SimulationNode[]) => { this.setState({ currantNodes: nodesList }) }}
-              newNodes={this.state.nodesToAdd} newLinks={this.state.linksToAdd} generateID={this.generateID} />
+            <PolymerViewer
+              forcefield={this.currentForceField}
+              getSimulation={(SimulationFromViewer: d3.Simulation<SimulationNode, SimulationLink>) => { this.setState({ Simulation: SimulationFromViewer }) }}
+              newNodes={this.state.nodesToAdd}
+              newLinks={this.state.linksToAdd}
+              generateID={this.generateID} />
           </Grid>
         </Grid>
 

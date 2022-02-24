@@ -3,15 +3,16 @@ import * as d3 from "d3";
 import CustomContextMenu from "./Viewer/CustomContextMenu";
 import { SimulationNode, SimulationLink, SimulationGroup } from './SimulationType';
 import { initSVG, initSimulation, reloadSimulation } from './Viewer/SimulationSVGFunction';
-import { addNodeToSVG, addLinkToSVG, checkLink, setSVG } from './addNodeLink';
+import { addNodeToSVG, addLinkToSVG, checkLink, setSVG, setRadius } from './addNodeLink';
 import './GeneratorViewer.css';
 import Warning from "./warning";
 
 interface propsviewer {
+  forcefield : string,
   newNodes: SimulationNode[];
   newLinks: SimulationLink[];
   generateID: () => string;
-  getNodes: ( arg : SimulationNode[] ) =>void;
+  getSimulation: (arg: any) => void;
 }
 
 interface statecustommenu {
@@ -84,16 +85,17 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
         .force("x", d3.forceX(this.taille / 2).strength(0.02 / zoomValue))
         .force("y", d3.forceY(this.taille / 2).strength(0.02 / zoomValue))
 
+      setRadius(this.currentnodeRadius)
       this.UpdateSVG()
     }));
-
+    setRadius(this.currentnodeRadius)
     setSVG(this.ref);
   }
 
 
   componentDidUpdate(prevProps: propsviewer, prevStates: statecustommenu) {
     console.log("componentDidUpdate");
-    
+
     //Check state and props 
     if ((prevProps.newNodes === this.props.newNodes) && (prevProps.newLinks === this.props.newLinks)) {
     }
@@ -124,12 +126,12 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
           checkedLinktoadd.push(link)
         }
       }
-      addLinkToSVG(this.currentnodeRadius, checkedLinktoadd)
+      addLinkToSVG(checkedLinktoadd)
     }
 
     // Si des news props apparaissent depuis manager on ajoute les noeuds !!!
     if (this.prevPropsNewnode !== this.props.newNodes) {
-      addNodeToSVG(this.currentnodeRadius, this.props.newNodes, this.simulation, this.handleUpdateSVG, this.warningfunction)
+      addNodeToSVG(this.props.newNodes, this.simulation, this.handleUpdateSVG, this.warningfunction)
 
       //Keep the previous props in memory
       this.prevPropsNewLink = this.props.newLinks;
@@ -162,8 +164,8 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
         }
       }
     }
-
-    this.props.getNodes(this.simulation.nodes())
+    //Send new simulation to Manager component
+    this.props.getSimulation(this.simulation )
     reloadSimulation(svgContext, this.simulation, groups)
 
   }
@@ -206,7 +208,7 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
 
     console.log("newNodes", newNodes)
 
-    addNodeToSVG(this.currentnodeRadius, newNodes, this.simulation, this.handleUpdateSVG, this.warningfunction)
+    addNodeToSVG(newNodes, this.simulation, this.handleUpdateSVG, this.warningfunction)
     // and then addLink
     // create newlink
     let newlinks: SimulationLink[] = []
@@ -233,7 +235,7 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
       }
 
     }
-    addLinkToSVG(this.currentnodeRadius, newlinks)
+    addLinkToSVG(newlinks)
     this.UpdateSVG()
   }
 
@@ -272,6 +274,7 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
       if (show) {
         const CircleSelected = d3.select(this.ref).selectAll('circle.onfocus');
         return <CustomContextMenu
+          forcefield={this.props.forcefield}
           x={this.state.x}
           y={this.state.y}
           nodeClick={this.state.nodeClick}

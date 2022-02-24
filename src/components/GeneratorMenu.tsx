@@ -9,11 +9,14 @@ import Insights from "@mui/icons-material/Insights";
 import { FormState } from './SimulationType'
 import Typography from "@mui/material/Typography";
 import Warning from "./warning";
+import CircularProgress from "@mui/material/CircularProgress";
+import { AutoFixHigh } from "@mui/icons-material";
 
 interface propsmenu {
   addnodeFromJson: (jsondata: JSON) => void,
   addnode: (arg0: FormState) => void,
   addlink: (arg1: any, arg2: any) => void,
+  send : () => void,
   dataForceFieldMolecule: {} | JSON,
 }
 
@@ -56,6 +59,7 @@ export default class GeneratorMenu extends React.Component<propsmenu, GeneratorM
       this.props.addnode({ forcefield: this.state.forcefield, moleculeToAdd: this.state.moleculeToAdd, numberToAdd: 1000 })
     }
   }
+
 
   CheckNewMolecule(): void {
     if (this.state.forcefield === '') {
@@ -102,6 +106,7 @@ export default class GeneratorMenu extends React.Component<propsmenu, GeneratorM
 
   }
 
+  
 
   render() {
 
@@ -195,10 +200,8 @@ export default class GeneratorMenu extends React.Component<propsmenu, GeneratorM
 
     return (
       <div>
-        {this.props.dataForceFieldMolecule === {} ? (
-          <Typography   >
-            Loading ...
-          </Typography>
+        { Object.keys( this.props.dataForceFieldMolecule).length === 0 ? (
+          <CircularProgress />
         ) :
           (<form>
             <Typography  >
@@ -236,8 +239,12 @@ export default class GeneratorMenu extends React.Component<propsmenu, GeneratorM
 
             <Warning message={this.state.Warningmessage} close={() => { this.setState({ Warningmessage: "" }) }}></Warning>
 
-            <Button id="explosion" variant="contained" color="error" endIcon={<Grain />} onClick={() => this.explosion()}>
+            {/* <Button id="explosion" variant="contained" color="error" endIcon={<Grain />} onClick={() => this.explosion()}>
               Boom
+            </Button> */}
+
+            <Button id="send" variant="contained" color="success" endIcon={<AutoFixHigh/>} onClick={() => this.props.send()}>
+              Polyply That !!
             </Button>
 
           </form>

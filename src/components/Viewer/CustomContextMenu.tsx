@@ -5,7 +5,7 @@ import Divider from '@mui/material/Divider';
 import Typography from '@mui/material/Typography';
 import * as d3 from "d3";
 import { SimulationNode, SimulationLink } from '../SimulationType';
-import {DownloadJson, PolyplyJson} from '../generateJson';
+import { DownloadJson } from '../generateJson';
 
 interface props {
     x: number;
@@ -13,6 +13,7 @@ interface props {
     nodeClick: SimulationNode | undefined;
     selected: any;
     simulation: d3.Simulation<SimulationNode, SimulationLink>;
+    forcefield: string,
     handleClose: () => void;
     handlePaste: () => void;
     handleUpdate: () => void;
@@ -194,8 +195,7 @@ export default class CustomContextMenu extends React.Component<props> {
                 open={true} >
                 {this.ifnode()}
                 {this.ifSelectedNode()}
-                <MenuItem onClick={() => { DownloadJson(this.props.simulation) ; this.props.handleClose();}}>Download Json</MenuItem>
-                <MenuItem onClick={() => { PolyplyJson(this.props.simulation) ; this.props.handleClose();}}>Give to Polyply</MenuItem>
+                <MenuItem onClick={() => { DownloadJson(this.props.simulation, this.props.forcefield); this.props.handleClose(); }}>Download Json</MenuItem>
                 <MenuItem onClick={this.props.handleClose}>Close</MenuItem>
             </Menu>
         )

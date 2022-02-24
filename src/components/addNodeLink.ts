@@ -7,7 +7,12 @@ export function setSVG(svgref: SVGElement) {
     Mysvg = svgref;
 }
 
-export function addNodeToSVG(radius: number, newnode: SimulationNode[], simulation: any, update: () => void, warningfunction: (arg0: string) => void) {
+let radius : number;
+export function setRadius( newradius : number) {
+    radius = newradius;
+}
+
+export function addNodeToSVG( newnode: SimulationNode[], simulation: any, update: () => void, warningfunction: (arg0: string) => void) {
     const node = d3.select(Mysvg).selectAll("circle")
         .data(newnode, (d: any) => d.id)
         .enter();
@@ -87,7 +92,7 @@ export function addNodeToSVG(radius: number, newnode: SimulationNode[], simulati
                 d3.select(Mysvg).selectAll("line")
                     .data([newlink], (d: any) => d.source.id + "-" + d.target.id)
                     .enter();
-                addLinkToSVG(radius, [newlink]);
+                addLinkToSVG( [newlink]);
                 update();
             }
         }
@@ -140,7 +145,7 @@ export function checkLink(node1: SimulationNode, node2: SimulationNode, warningf
     else return true;
 }
 
-export function addLinkToSVG(radius: number, newLink: SimulationLink[]): void {
+export function addLinkToSVG(newLink: SimulationLink[]): void {
     const link = d3.select(Mysvg).selectAll("line")
         .data(newLink, (d: any) => d.source.id + "-" + d.target.id)
         .enter();
