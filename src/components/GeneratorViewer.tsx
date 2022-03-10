@@ -178,7 +178,8 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
     console.log("pasteSelectedNode")
     const idModification: Record<string, string | number>[] = [];
     let oldNodes: SimulationNode[] = []
-    // on parcours la selection svg des noeuds a copier et on inscrit l'ancien id et le nouveau dans une liste idModification
+    // on parcours la selection svg des noeuds a copier 
+    //et on inscrit l'ancien id et le nouveau dans une liste idModification
     listNodesToPaste
       .each((d: SimulationNode) => {
         oldNodes.push(d)

@@ -49,7 +49,7 @@ function simulationToJsonBlob(simulation: d3.Simulation<SimulationNode, Simulati
     return blob
 }
 
-function simulationToJson(simulation: d3.Simulation<SimulationNode, SimulationLink>, ff: string) {
+export function simulationToJson(simulation: d3.Simulation<SimulationNode, SimulationLink>, ff: string) {
 
     const myRawNodes = simulation.nodes();
     const _ = myRawNodes.map(obj => {
@@ -102,10 +102,8 @@ export function DownloadJson(simulation: d3.Simulation<SimulationNode, Simulatio
     a.remove();
 }
 
-
 export function PolyplyJson(simulation: d3.Simulation<SimulationNode, SimulationLink>, ff: string) {
     const data = simulationToJson(simulation, ff)
-    console.log("send", data)
 
     const socket = io({ path: '/socket' })
 
@@ -115,8 +113,21 @@ export function PolyplyJson(simulation: d3.Simulation<SimulationNode, Simulation
     })
     console.dir(socket)
 
-    socket.on("itpDone", (data: string) => {
-        console.log(data)
+    socket.on("res", (data: string[]) => {
+
+        const blob = new Blob( [data[1] ], { type: "text" });
+
+        const a = document.createElement("a");
+        a.download = "out.gro";
+        a.href = window.URL.createObjectURL(blob);
+        const clickEvt = new MouseEvent("click", {
+            view: window,
+            bubbles: true,
+            cancelable: true,
+        });
+        a.dispatchEvent(clickEvt);
+        a.remove();
+
     })
     //socket.on('evt2', data)
 

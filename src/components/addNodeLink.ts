@@ -7,15 +7,29 @@ export function setSVG(svgref: SVGElement) {
     Mysvg = svgref;
 }
 
-let radius : number;
-export function setRadius( newradius : number) {
+let radius: number;
+export function setRadius(newradius: number) {
     radius = newradius;
 }
 
-export function addNodeToSVG( newnode: SimulationNode[], simulation: any, update: () => void, warningfunction: (arg0: string) => void) {
+export function addNodeToSVG(newnode: SimulationNode[], simulation: any, update: () => void, warningfunction: (arg0: string) => void) {
     const node = d3.select(Mysvg).selectAll("circle")
         .data(newnode, (d: any) => d.id)
         .enter();
+
+    let div: any;
+    // Define the div for the tooltip
+    console.log(document.getElementsByClassName("tooltip"))
+    if ( document.getElementsByClassName("tooltip").length ===0 ) {
+        div = d3.select("body")
+            .append("div")
+            .attr("class", "tooltip")
+    }
+    else {
+        div = d3.select("body").select("div.tooltip")
+    }
+
+
 
     // Define entering nodes     
     node.append('circle')
@@ -29,6 +43,20 @@ export function addNodeToSVG( newnode: SimulationNode[], simulation: any, update
             .on("drag", dragged)
             .on("end", dragended)
         )
+        .on("mouseover", function (event: any, d: SimulationNode) {
+            div.transition()
+                .duration(20)
+                .style("opacity", 1)
+
+            div.html(d.resname + " #" + d.id)
+                .style("left", (event.clientX) + "px")
+                .style("top", (event.clientY) + 20 + "px")
+        })
+        .on("mouseout", function (d) {
+            div.transition()
+                .duration(500)
+                .style("opacity", 0);
+        })
         .on('click', function (this: any, e: any, d: SimulationNode) {
             if (e.ctrlKey) {
                 d3.select(this).attr("class", "onfocus")
@@ -36,13 +64,7 @@ export function addNodeToSVG( newnode: SimulationNode[], simulation: any, update
             else console.log(d);
         });
 
-    //Need to be attach with a g node
-    // Add a title to each node with his name and his id
-    node.append("title")
-        .text(function (d: SimulationNode) {
-            let title = d.resname + " : " + d.id;
-            return title;
-        })
+
 
     // Define drag behaviour  
     type dragEvent = d3.D3DragEvent<SVGCircleElement, SimulationNode, any>;
@@ -92,7 +114,7 @@ export function addNodeToSVG( newnode: SimulationNode[], simulation: any, update
                 d3.select(Mysvg).selectAll("line")
                     .data([newlink], (d: any) => d.source.id + "-" + d.target.id)
                     .enter();
-                addLinkToSVG( [newlink]);
+                addLinkToSVG([newlink]);
                 update();
             }
         }
@@ -132,17 +154,17 @@ function hashStringToColor(str: string) {
 export function checkLink(node1: SimulationNode, node2: SimulationNode, warningfunction: (arg0: string) => void) {
 
     if ((node1.links === undefined) || (node2.links === undefined)) return true;
-    else if (node1.links!.length > 3) {
+    if (node1.links!.length > 3) {
         console.log(node1)
         warningfunction("Node number #" + node1.id + "  too many links ")
         return false;
     }
-    else if (node2.links!.length > 3) {
+    if (node2.links!.length > 3) {
         console.log(node2)
         warningfunction("Node number #" + node2.id + "  too many links ")
         return false;
     }
-    else return true;
+    return true;
 }
 
 export function addLinkToSVG(newLink: SimulationLink[]): void {

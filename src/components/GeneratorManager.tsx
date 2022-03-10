@@ -1,10 +1,11 @@
-import { Grid } from "@mui/material";
+import { CircularProgress, Grid } from "@mui/material";
 import * as React from "react";
 import GeneratorMenu from './GeneratorMenu';
 import PolymerViewer from './GeneratorViewer';
 import { FormState, SimulationNode, SimulationLink } from './SimulationType'
 import Warning from "./warning";
-import { PolyplyJson } from './generateJson';
+import { simulationToJson } from './generateJson';
+import io from 'socket.io-client';
 
 // Pour plus tard
 //https://github.com/korydondzila/React-TypeScript-D3/tree/master/src/components
@@ -17,6 +18,7 @@ interface StateSimulation {
   nodesToAdd: SimulationNode[],
   linksToAdd: SimulationLink[],
   dataForForm: {},
+  loading: Boolean
 }
 
 export default class GeneratorManager extends React.Component {
@@ -26,7 +28,8 @@ export default class GeneratorManager extends React.Component {
     nodesToAdd: [],
     linksToAdd: [],
     dataForForm: {},
-    Warningmessage: ""
+    Warningmessage: "",
+    loading: false
   }
 
   currentAvaibleID = -1;
@@ -35,47 +38,120 @@ export default class GeneratorManager extends React.Component {
     return this.currentAvaibleID.toString()
   }
 
+
   currentForceField = '';
 
   addnodeFromJson = (jsonFile: any): void => {
-    // Waring !! 
+    // Warning !! 
     // Attention a l'id qui est different entre la nouvelle representation et l'ancien json 
     // besoin de faire une table de correspondance ancien et nouveau id
-    const idModification: Record<string, string | number>[] = [];
 
-    const newMolecule: SimulationNode[] = [];
-    for (let node of jsonFile.nodes) {
-      const newid = this.generateID()
-      idModification.push({
-        oldID: node.id,
-        newID: newid,
-      })
+    //Check forcefield !! 
+    if (this.currentForceField === '') {
+      console.log("this.currentForceField === ")
+      this.currentForceField = jsonFile.forcefield
+    }
+    else if (this.currentForceField !== jsonFile.forcefield) {
+      this.setState({ Warningmessage: "Wrong forcefield " + this.currentForceField + " different than " + jsonFile.forcefield })
+    }
+    else {
+      const idModification: Record<string, string | number>[] = [];
 
-      node.id = newid
-      newMolecule.push(node)
+      const newMolecule: SimulationNode[] = [];
+      for (let node of jsonFile.nodes) {
+        const newid = this.generateID()
+        idModification.push({
+          oldID: node.id,
+          newID: newid,
+        })
+
+        node.id = newid
+        newMolecule.push(node)
+      }
+
+      let newlinks = []
+      for (let link of jsonFile.links) {
+        //Transform old id to new id ! 
+        const sourceNewID = idModification.filter((d: any) => (d.oldID === link.source))[0].newID
+        const targetNewID = idModification.filter((d: any) => (d.oldID === link.target))[0].newID
+        let node1 = newMolecule.filter((d: SimulationNode) => (d.id === sourceNewID))[0]
+        let node2 = newMolecule.filter((d: SimulationNode) => (d.id === targetNewID))[0]
+        newlinks.push({
+          "source": node1,
+          "target": node2
+        });
+
+        if (node1.links) node1.links.push(node2);
+        else node1.links = [node2];
+
+        if (node2.links) node2.links.push(node1);
+        else node2.links = [node1];
+
+      }
+      this.setState({ linksToAdd: newlinks });
+      this.setState({ nodesToAdd: newMolecule });
     }
 
-    let newlinks = []
-    for (let link of jsonFile.links) {
-      //Transform old id to new id ! 
-      const sourceNewID = idModification.filter((d: any) => (d.oldID === link.source))[0].newID
-      const targetNewID = idModification.filter((d: any) => (d.oldID === link.target))[0].newID
-      let node1 = newMolecule.filter((d: SimulationNode) => (d.id === sourceNewID))[0]
-      let node2 = newMolecule.filter((d: SimulationNode) => (d.id === targetNewID))[0]
-      newlinks.push({
-        "source": node1,
-        "target": node2
-      });
+  }
 
-      if (node1.links) node1.links.push(node2);
-      else node1.links = [node2];
+  setForcefield = (ff: string): void => {
+    if ((this.currentForceField === '') || (this.currentForceField === ff)) {
+      this.currentForceField = ff
+    }
+    else {
+      this.setState({ Warningmessage: "Change forcefield to " + this.currentForceField })
+    }
 
-      if (node2.links) node2.links.push(node1);
-      else node2.links = [node1];
+  }
+
+
+  // VERIFIER SI LE FORCEFIELD CONTIENT LES AA 
+  // Aficher message d'erreur 
+  addprotsequence = (sequence: string) => {
+    let i = 0 ;
+    const fastaconv : { [aa:string] : string} = {
+      'CYS': 'C', 'ASP': 'D', 'SER': 'S', 'GLN': 'Q', 'LYS': 'K',
+      'ILE': 'I', 'PRO': 'P', 'THR': 'T', 'PHE': 'F', 'ASN': 'N',
+      'GLY': 'G', 'HIS': 'H', 'LEU': 'L', 'ARG': 'R', 'TRP': 'W',
+      'ALA': 'A', 'VAL': 'V', 'GLU': 'E', 'TYR': 'Y', 'MET': 'M'
+    }
+    
+
+    const newMolecule: SimulationNode[] = [];
+    let newlinks = [];
+
+    // convert to node object et injecte dans la list
+    for (let res of sequence) {
+      //find 3 letter code 
+      
+      let res3 : string = Object.keys(fastaconv).find((key: string )  => fastaconv[key ] === res)!
+      console.log( res3)
+      let mol = {
+        "resname": res3,
+        "seqid": 0,
+        "id": this.generateID(),
+      };
+      newMolecule.push(mol)
+
+      // If last molecule do not create link with the next mol
+      if (i > 0) {
+        newlinks.push({
+          "source": newMolecule[i - 1],
+          "target": newMolecule[i]
+        });
+        if (newMolecule[i - 1].links) newMolecule[i - 1].links!.push(newMolecule[i]);
+        else newMolecule[i - 1].links = [newMolecule[i]];
+
+        if (newMolecule[i].links) newMolecule[i].links!.push(newMolecule[i - 1]);
+        else newMolecule[i].links = [newMolecule[i - 1]];
+        // add to state
+      }
+      i++
 
     }
     this.setState({ linksToAdd: newlinks });
     this.setState({ nodesToAdd: newMolecule });
+
   }
 
   addnode = (toadd: FormState): void => {
@@ -174,24 +250,52 @@ export default class GeneratorManager extends React.Component {
   }
 
   sendToServer = (): void => {
+    this.setState({ loading: true })
     console.log("Go to server");
     if (this.state.Simulation === undefined) {
-      this.setState({ Warningmessage: "GIUILYHEB ?HJCBFKEYBEHGCKL" })
+      this.setState({ Warningmessage: "Error Simulation undefined " })
     }
     else {
-      PolyplyJson(this.state.Simulation!, this.currentForceField)
+      const data = simulationToJson(this.state.Simulation!, this.currentForceField)
+
+      const socket = io({ path: '/socket' })
+
+      socket.on("connect", () => {
+        console.log("connect")
+        socket.emit('testpolyply', data)
+      })
+      console.dir(socket)
+
+      socket.on("res", (data: string[]) => {
+
+        const blob = new Blob([data[1]], { type: "text" });
+
+        const a = document.createElement("a");
+        a.download = "out.gro";
+        a.href = window.URL.createObjectURL(blob);
+        const clickEvt = new MouseEvent("click", {
+          view: window,
+          bubbles: true,
+          cancelable: true,
+        });
+        a.dispatchEvent(clickEvt);
+        a.remove();
+        this.setState({ loading: false })
+      })
+
+
     }
 
   }
 
   componentDidMount() {
-    this.callBackendAPI()
+    this.getDataForcefield()
       .then((value: any) => this.setState({ dataForForm: value }))
       .catch(err => { console.log(err); this.setState({ dataForForm: {} }) });
   }
 
   // fetching the GET route from the Express server which matches the GET route from server.js
-  callBackendAPI = async () => {
+  getDataForcefield = async () => {
     const response = await fetch('/api/data');
     const body = await response.json();
     console.log("load data forcefield")
@@ -201,18 +305,27 @@ export default class GeneratorManager extends React.Component {
     return body;
   };
 
+
   render() {
     return (
       <div>
+
         <Warning message={this.state.Warningmessage} close={() => { this.setState({ Warningmessage: "" }) }}></Warning>
         <Grid container spacing={2}>
           <Grid item xs={4}>
             <GeneratorMenu
+              addprotsequence={this.addprotsequence}
+              setForcefield={this.setForcefield}
               addnodeFromJson={this.addnodeFromJson}
               addnode={this.addnode}
               addlink={this.addlink}
               send={this.sendToServer}
               dataForceFieldMolecule={this.state.dataForForm} />
+
+            {this.state.loading ? (
+              <CircularProgress />
+            ) : (<></>)
+            }
           </Grid>
           <Grid item xs={8}>
             <PolymerViewer

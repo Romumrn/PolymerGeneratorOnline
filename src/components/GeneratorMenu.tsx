@@ -13,10 +13,12 @@ import CircularProgress from "@mui/material/CircularProgress";
 import { AutoFixHigh } from "@mui/icons-material";
 
 interface propsmenu {
+  setForcefield: (ff: string) => void,
   addnodeFromJson: (jsondata: JSON) => void,
   addnode: (arg0: FormState) => void,
   addlink: (arg1: any, arg2: any) => void,
-  send : () => void,
+  addprotsequence : (arg0: string) => void,
+  send: () => void,
   dataForceFieldMolecule: {} | JSON,
 }
 
@@ -46,6 +48,8 @@ export default class GeneratorMenu extends React.Component<propsmenu, GeneratorM
   GetMolFField(jsonformdata: any, ff: string): string[] {
     return jsonformdata[ff];
   }
+
+
 
   explosion(): void {
     console.log("Boom");
@@ -88,16 +92,28 @@ export default class GeneratorMenu extends React.Component<propsmenu, GeneratorM
   handleUpload = (selectorFiles: FileList) => {
     if (selectorFiles.length === 1) {
       let file = selectorFiles[0]
-      if (file.type && !file.type.startsWith('application/json')) {
-        this.setState({ Warningmessage: 'File is not Json. ' + file.type });
-        return;
+      const ext = file.name.split('.').slice(-1)[0]
+      if (ext === 'json') {
+        let reader = new FileReader();
+        reader.onload = (event: any) => {
+          let obj = JSON.parse(event.target.result);
+          this.props.addnodeFromJson(obj);
+        }
+        reader.readAsText(file);
       }
-      let reader = new FileReader();
-      reader.onload = (event: any) => {
-        let obj = JSON.parse(event.target.result);
-        this.props.addnodeFromJson(obj);
+      else if (ext === 'fasta') {
+        let reader = new FileReader();
+        reader.onload = (event: any) => {
+          const fastaContent = event.target.result;
+          let seq = ''
+          for ( let line of fastaContent.split('\n')){
+            if (! line.startsWith('>')) seq = seq+line
+          }
+          this.props.addprotsequence( seq)
+        }
+        reader.readAsText(file);
       }
-      reader.readAsText(file);
+
     }
     else {
       this.setState({ Warningmessage: "Only one files should be upload" })
@@ -106,7 +122,7 @@ export default class GeneratorMenu extends React.Component<propsmenu, GeneratorM
 
   }
 
-  
+
 
   render() {
 
@@ -116,7 +132,7 @@ export default class GeneratorMenu extends React.Component<propsmenu, GeneratorM
       if (forcefield) {
 
         return <div>
-          <Typography>Upload your previous polymer</Typography>
+          <Typography>Upload your previous polymer/ fasta protein sequence</Typography>
 
 
           <Button
@@ -132,7 +148,7 @@ export default class GeneratorMenu extends React.Component<propsmenu, GeneratorM
           </Button>
 
 
-          <Typography variant="h4" > Or  </Typography>
+          <Typography variant="h5" > And/Or  </Typography>
 
           <Typography> Add your molecule : </Typography>
 
@@ -200,54 +216,65 @@ export default class GeneratorMenu extends React.Component<propsmenu, GeneratorM
 
     return (
       <div>
-        { Object.keys( this.props.dataForceFieldMolecule).length === 0 ? (
+        <Typography variant="h5"  >
+          Design your own polymer
+        </Typography>
+        <Typography variant="subtitle2" component={'div'}>
+
+          <ul>
+            <li>Add chain or molecule</li>
+            <li>Add link</li>
+            <li>Select and Paste</li>
+            <li>Groupe connexe polymer</li>
+            <li>Remove : Right click</li>
+            <li>Download a Json of your current polymer</li>
+          </ul>
+        </Typography>
+        {Object.keys(this.props.dataForceFieldMolecule).length === 0 ? (
           <CircularProgress />
         ) :
-          (<form>
-            <Typography  >
-              Choose your forcefield :
-            </Typography>
+          (
+            <form>
+              <Typography variant="h5" >
+                First choose your forcefield :
+              </Typography>
 
-            <InputLabel id="select-forcefield">forcefield</InputLabel>
-            <Select
-              id="select-forcefield"
-              defaultValue={""}
-              onChange={
-                v => this.setState({ forcefield: v.target.value })
-              }>
+              <InputLabel id="select-forcefield">forcefield</InputLabel>
+              <Select
+                id="select-forcefield"
+                defaultValue={""}
+                onChange={
+                  v => {
+                    this.props.setForcefield(v.target.value);
+                    this.setState({ forcefield: v.target.value })
+                  }
+                }>
 
-              {Object.keys(this.props.dataForceFieldMolecule).map(e => {
-                return (<MenuItem key={e} value={e}> {e} </MenuItem>)
-              })
+                {Object.keys(this.props.dataForceFieldMolecule).map(e => {
+                  return (<MenuItem key={e} value={e}> {e} </MenuItem>)
+                })
+                }
+
+              </Select>
+
+              {
+                showMoleculeForm()
               }
 
-            </Select>
-
-            {
-              showMoleculeForm()
-            }
 
 
-            <Typography component={'div'}>
 
-              <ul>
-                <li>Create a new link : Move the node</li>
-                <li>Remove : click on a node or a link</li>
-                <li>Then download your polymer in json</li>
-              </ul>
-            </Typography>
+              <Warning message={this.state.Warningmessage} close={() => { this.setState({ Warningmessage: "" }) }}></Warning>
 
-            <Warning message={this.state.Warningmessage} close={() => { this.setState({ Warningmessage: "" }) }}></Warning>
-
-            {/* <Button id="explosion" variant="contained" color="error" endIcon={<Grain />} onClick={() => this.explosion()}>
+              {/* <Button id="explosion" variant="contained" color="error" endIcon={<Grain />} onClick={() => this.explosion()}>
               Boom
             </Button> */}
 
-            <Button id="send" variant="contained" color="success" endIcon={<AutoFixHigh/>} onClick={() => this.props.send()}>
-              Polyply That !!
-            </Button>
+              <Button id="send" variant="contained" color="success" endIcon={<AutoFixHigh />} onClick={() => this.props.send()}>
+                Polyply That !!
+              </Button>
 
-          </form>
+            </form>
           )}
       </div>
     )
