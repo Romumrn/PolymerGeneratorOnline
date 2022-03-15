@@ -8,7 +8,7 @@ import './GeneratorViewer.css';
 import Warning from "./warning";
 
 interface propsviewer {
-  forcefield : string,
+  forcefield: string,
   newNodes: SimulationNode[];
   newLinks: SimulationLink[];
   generateID: () => string;
@@ -160,12 +160,13 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
           groups.push({ id: i, nodes: selectedNodes })
         }
         else {
-
+          console.log(selectedNodes, i)
+          d3.select(this.ref).selectAll('path.area').filter((g: any) => parseInt(g.group) === i).remove()
         }
       }
     }
     //Send new simulation to Manager component
-    this.props.getSimulation(this.simulation )
+    this.props.getSimulation(this.simulation)
     reloadSimulation(svgContext, this.simulation, groups)
 
   }
@@ -176,7 +177,7 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
 
   pasteSelectedNode = (listNodesToPaste: any) => {
     console.log("pasteSelectedNode")
-    const idModification: Record<string, string | number>[] = [];
+    const idModification: any[] = [];
     let oldNodes: SimulationNode[] = []
     // on parcours la selection svg des noeuds a copier 
     //et on inscrit l'ancien id et le nouveau dans une liste idModification

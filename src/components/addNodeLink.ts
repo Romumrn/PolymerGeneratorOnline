@@ -154,12 +154,12 @@ function hashStringToColor(str: string) {
 export function checkLink(node1: SimulationNode, node2: SimulationNode, warningfunction: (arg0: string) => void) {
 
     if ((node1.links === undefined) || (node2.links === undefined)) return true;
-    if (node1.links!.length > 3) {
+    if (node1.links!.length > 4) {
         console.log(node1)
         warningfunction("Node number #" + node1.id + "  too many links ")
         return false;
     }
-    if (node2.links!.length > 3) {
+    if (node2.links!.length > 4) {
         console.log(node2)
         warningfunction("Node number #" + node2.id + "  too many links ")
         return false;
@@ -168,6 +168,7 @@ export function checkLink(node1: SimulationNode, node2: SimulationNode, warningf
 }
 
 export function addLinkToSVG(newLink: SimulationLink[]): void {
+    console.log( newLink)
     const link = d3.select(Mysvg).selectAll("line")
         .data(newLink, (d: any) => d.source.id + "-" + d.target.id)
         .enter();

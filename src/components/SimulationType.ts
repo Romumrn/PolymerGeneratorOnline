@@ -10,7 +10,7 @@ export interface SimulationNode extends SimulationNodeDatum {
   resname: string,
   seqid: number,
   links?: SimulationNode[],
-  id: number | string
+  id: string
   x?: number,
   y?: number,
   fx?: number | null,

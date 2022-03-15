@@ -5,6 +5,7 @@ import PolymerViewer from './GeneratorViewer';
 import { FormState, SimulationNode, SimulationLink } from './SimulationType'
 import Warning from "./warning";
 import { simulationToJson } from './generateJson';
+import { checkLink } from './addNodeLink';
 import io from 'socket.io-client';
 
 // Pour plus tard
@@ -17,7 +18,7 @@ interface StateSimulation {
   Warningmessage: string;
   nodesToAdd: SimulationNode[],
   linksToAdd: SimulationLink[],
-  dataForForm: {},
+  dataForForm: { [forcefield: string]: string[] },
   loading: Boolean
 }
 
@@ -41,6 +42,61 @@ export default class GeneratorManager extends React.Component {
 
   currentForceField = '';
 
+  addprotsequence = (sequence: string) => {
+    let i = 0;
+    const fastaconv: { [aa: string]: string } = {
+      'CYS': 'C', 'ASP': 'D', 'SER': 'S', 'GLN': 'Q', 'LYS': 'K',
+      'ILE': 'I', 'PRO': 'P', 'THR': 'T', 'PHE': 'F', 'ASN': 'N',
+      'GLY': 'G', 'HIS': 'H', 'LEU': 'L', 'ARG': 'R', 'TRP': 'W',
+      'ALA': 'A', 'VAL': 'V', 'GLU': 'E', 'TYR': 'Y', 'MET': 'M'
+    }
+
+    // VERIFIER SI LE FORCEFIELD CONTIENT LES AA 
+    // Aficher message d'erreur 
+    for (let aa of Object.keys(fastaconv)) {
+      if (!this.state.dataForForm[this.currentForceField].includes(aa)) {
+        this.setState({ Warningmessage: "This residue (" + aa + " ) is not in this forcefield " + this.currentForceField })
+        return
+      }
+    }
+
+    const newMolecule: SimulationNode[] = [];
+    let newlinks = [];
+
+    // convert to node object et injecte dans la list
+    for (let res of sequence) {
+      //find 3 letter code 
+
+      let res3: string = Object.keys(fastaconv).find((key: string) => fastaconv[key] === res)!
+      console.log(res3)
+      let mol = {
+        "resname": res3,
+        "seqid": 0,
+        "id": this.generateID(),
+      };
+      newMolecule.push(mol)
+
+      // If last molecule do not create link with the next mol
+      if (i > 0) {
+        newlinks.push({
+          "source": newMolecule[i - 1],
+          "target": newMolecule[i]
+        });
+        if (newMolecule[i - 1].links) newMolecule[i - 1].links!.push(newMolecule[i]);
+        else newMolecule[i - 1].links = [newMolecule[i]];
+
+        if (newMolecule[i].links) newMolecule[i].links!.push(newMolecule[i - 1]);
+        else newMolecule[i].links = [newMolecule[i - 1]];
+        // add to state
+      }
+      i++
+
+    }
+    this.setState({ linksToAdd: newlinks });
+    this.setState({ nodesToAdd: newMolecule });
+
+  }
+
   addnodeFromJson = (jsonFile: any): void => {
     // Warning !! 
     // Attention a l'id qui est different entre la nouvelle representation et l'ancien json 
@@ -51,7 +107,8 @@ export default class GeneratorManager extends React.Component {
       console.log("this.currentForceField === ")
       this.currentForceField = jsonFile.forcefield
     }
-    else if (this.currentForceField !== jsonFile.forcefield) {
+
+    else if ((this.currentForceField !== jsonFile.forcefield) && (jsonFile.forcefield !== undefined)) {
       this.setState({ Warningmessage: "Wrong forcefield " + this.currentForceField + " different than " + jsonFile.forcefield })
     }
     else {
@@ -98,61 +155,16 @@ export default class GeneratorManager extends React.Component {
     if ((this.currentForceField === '') || (this.currentForceField === ff)) {
       this.currentForceField = ff
     }
+    else if (this.state.nodesToAdd.length === 0) {
+
+      this.currentForceField = ff
+    }
     else {
       this.setState({ Warningmessage: "Change forcefield to " + this.currentForceField })
     }
 
   }
 
-
-  // VERIFIER SI LE FORCEFIELD CONTIENT LES AA 
-  // Aficher message d'erreur 
-  addprotsequence = (sequence: string) => {
-    let i = 0 ;
-    const fastaconv : { [aa:string] : string} = {
-      'CYS': 'C', 'ASP': 'D', 'SER': 'S', 'GLN': 'Q', 'LYS': 'K',
-      'ILE': 'I', 'PRO': 'P', 'THR': 'T', 'PHE': 'F', 'ASN': 'N',
-      'GLY': 'G', 'HIS': 'H', 'LEU': 'L', 'ARG': 'R', 'TRP': 'W',
-      'ALA': 'A', 'VAL': 'V', 'GLU': 'E', 'TYR': 'Y', 'MET': 'M'
-    }
-    
-
-    const newMolecule: SimulationNode[] = [];
-    let newlinks = [];
-
-    // convert to node object et injecte dans la list
-    for (let res of sequence) {
-      //find 3 letter code 
-      
-      let res3 : string = Object.keys(fastaconv).find((key: string )  => fastaconv[key ] === res)!
-      console.log( res3)
-      let mol = {
-        "resname": res3,
-        "seqid": 0,
-        "id": this.generateID(),
-      };
-      newMolecule.push(mol)
-
-      // If last molecule do not create link with the next mol
-      if (i > 0) {
-        newlinks.push({
-          "source": newMolecule[i - 1],
-          "target": newMolecule[i]
-        });
-        if (newMolecule[i - 1].links) newMolecule[i - 1].links!.push(newMolecule[i]);
-        else newMolecule[i - 1].links = [newMolecule[i]];
-
-        if (newMolecule[i].links) newMolecule[i].links!.push(newMolecule[i - 1]);
-        else newMolecule[i].links = [newMolecule[i - 1]];
-        // add to state
-      }
-      i++
-
-    }
-    this.setState({ linksToAdd: newlinks });
-    this.setState({ nodesToAdd: newMolecule });
-
-  }
 
   addnode = (toadd: FormState): void => {
     //Check forcefield 
@@ -202,6 +214,11 @@ export default class GeneratorManager extends React.Component {
     const node2 = listnode?.find(element => element.id === id2);
 
     console.log(listnode, node1, node2)
+    const warningfunction = (message: string) => {
+      this.setState({ Warningmessage: message })
+    }
+
+
     if (node1 === undefined) {
       this.setState({ Warningmessage: "Nodes id number " + id1 + " does not exist" });
       return
@@ -210,6 +227,9 @@ export default class GeneratorManager extends React.Component {
       this.setState({ Warningmessage: "Nodes id number " + id2 + " does not exist" });
       return
     }
+
+    checkLink(node1, node2, warningfunction)
+
     let newlinks = [{
       "source": node1,
       "target": node2
@@ -269,17 +289,23 @@ export default class GeneratorManager extends React.Component {
       socket.on("res", (data: string[]) => {
 
         const blob = new Blob([data[1]], { type: "text" });
+        console.log([data[1]])
+        if (data[1] === "") {
+          this.setState({ Warningmessage: "Fail ! Something goes wrong. " })
+        }
+        else {
+          const a = document.createElement("a");
+          a.download = "out.gro";
+          a.href = window.URL.createObjectURL(blob);
+          const clickEvt = new MouseEvent("click", {
+            view: window,
+            bubbles: true,
+            cancelable: true,
+          });
+          a.dispatchEvent(clickEvt);
+          a.remove();
+        }
 
-        const a = document.createElement("a");
-        a.download = "out.gro";
-        a.href = window.URL.createObjectURL(blob);
-        const clickEvt = new MouseEvent("click", {
-          view: window,
-          bubbles: true,
-          cancelable: true,
-        });
-        a.dispatchEvent(clickEvt);
-        a.remove();
         this.setState({ loading: false })
       })
 

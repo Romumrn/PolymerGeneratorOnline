@@ -6,6 +6,7 @@ import Typography from '@mui/material/Typography';
 import * as d3 from "d3";
 import { SimulationNode, SimulationLink } from '../SimulationType';
 import { DownloadJson } from '../generateJson';
+import { addLinkToSVG } from "../addNodeLink";
 
 interface props {
     x: number;
@@ -21,6 +22,69 @@ interface props {
 }
 
 export default class CustomContextMenu extends React.Component<props> {
+
+    addMagicLink(selected: d3.Selection<SVGSVGElement, SimulationNode, null, undefined>, svg: d3.Selection<SVGSVGElement, unknown, null, undefined>) {
+        console.log("Add link between node to create a chain")
+
+        let nodetoLink: SimulationNode[] = [];
+
+        //Recherche les nodes sans link ou avec un seul link
+        selected.each((d: SimulationNode) => {
+            if (!d.links) {
+                nodetoLink.push(d)
+            }
+            else if (d.links!.length === 1) {
+                nodetoLink.push(d)
+            }
+        })
+
+        let newlinks = []
+
+        console.log(nodetoLink)
+        // Parcourir la liste pour trouver noeud avec lien manquant avec id consecutif 
+        let nextid: number = parseInt(nodetoLink[0].id) + 1
+        for (let node of nodetoLink) {
+
+            if (parseInt(node.id) === nextid) {
+
+                let nodetarget = nodetoLink.filter((n) => parseInt(n.id) === (nextid - 1))[0]
+
+                let link = {
+                    source: node,
+                    target: nodetarget
+                }
+                newlinks.push(link)
+
+                if (node.links) node.links.push(nodetarget);
+                else node.links = [nodetarget];
+
+                if (nodetarget.links) nodetarget.links.push(node);
+                else nodetarget.links = [node];
+
+
+                nextid = parseInt(node.id) + 1
+            }
+            else nextid = parseInt(node.id) + 1
+        }
+        addLinkToSVG(newlinks)
+        this.props.handleUpdate();
+    }
+
+    removeLink = (node: SimulationNode, svg: d3.Selection<SVGSVGElement, unknown, null, undefined>) => {
+        console.log("Remove links", node)
+        if (node.links !== undefined) {
+            for (let linkednode of node.links) {
+                //remove link between node and removed node
+                linkednode.links = linkednode.links!.filter((nodeToRM: SimulationNode) => nodeToRM.id !== node.id);
+            }
+        }
+
+        this.props.svg.selectAll("line").filter((link: any) => ((link.source.id === node.id) || (link.target.id === node.id))).remove();
+
+        delete node.links
+        this.props.handleUpdate();
+        this.props.handleClose();
+    }
 
     giveConnexeNode = (node: SimulationNode, svg: d3.Selection<SVGSVGElement, unknown, null, undefined>) => {
         //Give one node and class on focus rest of polymer nodes 
@@ -128,7 +192,12 @@ export default class CustomContextMenu extends React.Component<props> {
             .attr("stroke-linejoin", "round")
             .style("opacity", 0.2)
             .on('click', function (this: any, e: any) {
-                listNodesD3.attr("opacity", 0.2)
+                if( listNodesD3.attr("opacity") > 0.5){
+                    listNodesD3.attr("opacity", 0.2)
+                }
+                else{
+                    listNodesD3.attr("opacity", 1)
+                }
                 console.log(this);
             });
     }
@@ -169,6 +238,7 @@ export default class CustomContextMenu extends React.Component<props> {
                 <MenuItem onClick={() => { this.removeSelectedNodes(this.props.selected) }}> Remove {this.props.selected.size()} selected nodes</MenuItem>
                 <MenuItem onClick={() => { this.props.handlePaste() }}> Paste {this.props.selected.size()} selected nodes</MenuItem>
                 <MenuItem onClick={() => { this.props.selected.attr("class", "nodes"); this.props.handleClose(); }}>Unselected</MenuItem>
+                <MenuItem onClick={() => { this.addMagicLink(this.props.selected, this.props.svg); this.props.handleClose(); }}>Link it</MenuItem>
             </div>;
         } else {
             return null;
@@ -178,6 +248,7 @@ export default class CustomContextMenu extends React.Component<props> {
     ifnode = () => {
         if (this.props.nodeClick) {
             return <div key={0}>
+                <MenuItem onClick={() => { this.removeLink(this.props.nodeClick!, this.props.svg) }}>Remove link</MenuItem>
                 <MenuItem onClick={() => { if (this.props.nodeClick !== undefined) this.removeNode(this.props.nodeClick) }}>Remove node #{this.props.nodeClick.id}</MenuItem>
                 <MenuItem onClick={() => { this.giveConnexeNode(this.props.nodeClick!, this.props.svg).attr("class", "onfocus"); this.props.handleClose() }}>Select this polymer</MenuItem>
                 <Divider />

@@ -17,7 +17,7 @@ interface propsmenu {
   addnodeFromJson: (jsondata: JSON) => void,
   addnode: (arg0: FormState) => void,
   addlink: (arg1: any, arg2: any) => void,
-  addprotsequence : (arg0: string) => void,
+  addprotsequence: (arg0: string) => void,
   send: () => void,
   dataForceFieldMolecule: {} | JSON,
 }
@@ -81,6 +81,7 @@ export default class GeneratorMenu extends React.Component<propsmenu, GeneratorM
   CheckNewLink(idLink1: string | undefined, idLink2: string | undefined): void {
     // check undefined value : 
 
+    //checkLink( )
     if ((typeof (idLink1) == 'undefined') || (typeof (idLink2) == 'undefined')) {
       this.setState({ Warningmessage: "Problem link : id number undefined" })
     }
@@ -106,12 +107,24 @@ export default class GeneratorMenu extends React.Component<propsmenu, GeneratorM
         reader.onload = (event: any) => {
           const fastaContent = event.target.result;
           let seq = ''
-          for ( let line of fastaContent.split('\n')){
-            if (! line.startsWith('>')) seq = seq+line
+          for (let line of fastaContent.split('\n')) {
+            if (!line.startsWith('>')) seq = seq + line
           }
-          this.props.addprotsequence( seq)
+          this.props.addprotsequence(seq)
         }
         reader.readAsText(file);
+      }
+      else if ((ext === 'itp') || (ext === 'ff')) {
+        let reader = new FileReader();
+        reader.onload = (event: any) => {
+
+          this.setState({ Warningmessage: event.target.result })
+
+        }
+        reader.readAsText(file);
+      }
+      else{
+        this.setState({ Warningmessage: "Fichier inconnu" })
       }
 
     }
@@ -132,7 +145,12 @@ export default class GeneratorMenu extends React.Component<propsmenu, GeneratorM
       if (forcefield) {
 
         return <div>
-          <Typography>Upload your previous polymer/ fasta protein sequence</Typography>
+          <Typography variant="subtitle2" component={'div'}>
+            <ul>Upload a file :
+              <li>your previous polymer (.json)</li>
+              <li>a fasta protein sequence (.fasta)</li>
+              <li>a residue description for the forcefield (.itp/.ff)</li>
+            </ul>   </Typography>
 
 
           <Button
