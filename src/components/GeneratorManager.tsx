@@ -5,8 +5,9 @@ import PolymerViewer from './GeneratorViewer';
 import { FormState, SimulationNode, SimulationLink } from './SimulationType'
 import Warning from "./warning";
 import { simulationToJson } from './generateJson';
-import { checkLink } from './addNodeLink';
+import {checkLink , alarmBadLinks} from './addNodeLink';
 import io from 'socket.io-client';
+import RunPolyplyDialog from "./RunPolyplyDialog";
 
 // Pour plus tard
 //https://github.com/korydondzila/React-TypeScript-D3/tree/master/src/components
@@ -19,7 +20,8 @@ interface StateSimulation {
   nodesToAdd: SimulationNode[],
   linksToAdd: SimulationLink[],
   dataForForm: { [forcefield: string]: string[] },
-  loading: Boolean
+  loading: Boolean,
+  sending: boolean
 }
 
 export default class GeneratorManager extends React.Component {
@@ -30,7 +32,8 @@ export default class GeneratorManager extends React.Component {
     linksToAdd: [],
     dataForForm: {},
     Warningmessage: "",
-    loading: false
+    loading: false,
+    sending: false
   }
 
   currentAvaibleID = -1;
@@ -243,8 +246,6 @@ export default class GeneratorManager extends React.Component {
     this.setState({ linksToAdd: newlinks });
   }
 
-
-
   removenode = (id: string): void => {
     //remove node with a copy of state
     var nodescopy = [...this.state.nodesToAdd];
@@ -269,50 +270,83 @@ export default class GeneratorManager extends React.Component {
     this.setState({ linksToAdd: linkscopy });
   }
 
-  sendToServer = (): void => {
-    this.setState({ loading: true })
+  ClickToSend = (): void => {
     console.log("Go to server");
     if (this.state.Simulation === undefined) {
       this.setState({ Warningmessage: "Error Simulation undefined " })
     }
     else {
-      const data = simulationToJson(this.state.Simulation!, this.currentForceField)
-
-      const socket = io({ path: '/socket' })
-
-      socket.on("connect", () => {
-        console.log("connect")
-        socket.emit('testpolyply', data)
-      })
-      console.dir(socket)
-
-      socket.on("res", (data: string[]) => {
-
-        const blob = new Blob([data[1]], { type: "text" });
-        console.log([data[1]])
-        if (data[1] === "") {
-          this.setState({ Warningmessage: "Fail ! Something goes wrong. " })
-        }
-        else {
-          const a = document.createElement("a");
-          a.download = "out.gro";
-          a.href = window.URL.createObjectURL(blob);
-          const clickEvt = new MouseEvent("click", {
-            view: window,
-            bubbles: true,
-            cancelable: true,
-          });
-          a.dispatchEvent(clickEvt);
-          a.remove();
-        }
-
-        this.setState({ loading: false })
-      })
+      // Doit montrer le modal dialog
+      this.setState({ sending: true })
+      // Make dialog box appaer
+      this.setState({ loading: true })
+    }
+  }
 
 
+
+  Send = (density: string, name: string): void => {
+    this.setState({ sending: false })
+
+    console.log(density, name)
+    const jsonpolymer = simulationToJson(this.state.Simulation!, this.currentForceField)
+
+    const data = {
+      polymer: jsonpolymer,
+      density: density,
+      name: name
     }
 
+    const socket = io({ path: '/socket' })
+    socket.on("connect", () => {
+      console.log("connect")
+      socket.emit('runpolyply', data)
+    })
+
+    socket.on("greatsuccess", (data: string) => {
+      const blob = new Blob([data], { type: "text" });
+      this.setState({ loading: false })
+     
+      //then on envois le route n2 qui execute polyply gen coord
+      const a = document.createElement("a");
+      a.download = "out.gro";
+      a.href = window.URL.createObjectURL(blob);
+      const clickEvt = new MouseEvent("click", {
+        view: window,
+        bubbles: true,
+        cancelable: true,
+      });
+      a.dispatchEvent(clickEvt);
+      a.remove();
+    })
+
+    socket.on("oups", (dicoError: any) => {
+      this.setState({ loading: false })
+      console.log(dicoError)
+
+      //Si il y a des erreur, on affiche un warning 
+      //dicErreur.errorlinks.push([resname1, idname1, resname2, idname2])
+      console.log(dicoError.errorlinks.length)
+      if (dicoError.errorlinks.length > 0) {
+        this.setState({ Warningmessage: "Fail ! Wrong links : "+dicoError.errorlinks})
+        for ( let i of dicoError.errorlinks){
+          alarmBadLinks( i[1].toString(), i[3].toString() )
+        }
+      }
+      else {
+        // (dicoError.disjoint === true) 
+        this.setState({ Warningmessage: "Fail ! Your molecule consists of disjoint parts.Perhaps links were not applied correctly. Peut etre une option a ajouter pour mettre 2 molecule dans le melange ????????"})
+         
+      }
+
+
+
+    })
+
+
   }
+ 
+
 
   componentDidMount() {
     this.getDataForcefield()
@@ -345,11 +379,12 @@ export default class GeneratorManager extends React.Component {
               addnodeFromJson={this.addnodeFromJson}
               addnode={this.addnode}
               addlink={this.addlink}
-              send={this.sendToServer}
+              send={this.ClickToSend}
               dataForceFieldMolecule={this.state.dataForForm} />
 
             {this.state.loading ? (
-              <CircularProgress />
+              <><RunPolyplyDialog show={this.state.sending} send={this.Send}> </RunPolyplyDialog>
+                <CircularProgress /></>
             ) : (<></>)
             }
           </Grid>

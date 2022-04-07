@@ -19,6 +19,7 @@ interface statecustommenu {
   x: number,
   y: number,
   nodeClick: SimulationNode | undefined,
+  hullClick: Element | undefined,
   nodeToRemove: SimulationNode[],
   show: boolean,
   Warningmessage: string
@@ -30,6 +31,7 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
     x: 0,
     y: 0,
     nodeClick: undefined,
+    hullClick: undefined,
     show: false,
     nodeToRemove: [],
     Warningmessage: ''
@@ -73,6 +75,13 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
       console.log("zoom value", zoomValue);
 
       mySVG.selectAll("circle")
+        // .each( (d: SimulationNode) => {
+        //   console.log("r", node.attr("r"))
+        //   const newr = parseInt(node.attr("r")) * zoomValue / parseInt(node.attr("r"))
+        //   console.log("newr", newr)
+        //   const newstrokew = parseInt(node.attr("r")) * zoomValue / 4
+        //   node.attr("r", newr)
+        //   node.attr("stroke-width", newstrokew))
         .attr("r", this.currentnodeRadius)
         .attr("stroke-width", this.currentnodeRadius / 4)
 
@@ -172,7 +181,7 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
   }
 
   handleClose = () => {
-    this.setState({ show: false, nodeClick: undefined })
+    this.setState({ show: false, nodeClick: undefined, hullClick: undefined })
   };
 
   pasteSelectedNode = (listNodesToPaste: any) => {
@@ -251,8 +260,12 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
       console.log(nodeToRm)
       this.setState({ x: event.clientX, y: event.clientY, nodeClick: nodeToRm, show: true, });
     }
+    else if (element?.tagName === "path") {
+      console.log(element)
+      this.setState({ x: event.clientX, y: event.clientY, show: true, hullClick: element });
+    }
     else {
-      this.setState({ x: event.clientX, y: event.clientY, show: true, });
+      this.setState({ x: event.clientX, y: event.clientY, show: true });
     }
   };
 
@@ -280,6 +293,7 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
           x={this.state.x}
           y={this.state.y}
           nodeClick={this.state.nodeClick}
+          hullClick={this.state.hullClick}
           selected={CircleSelected}
           handleClose={this.handleClose}
           svg={d3.select(this.ref)}

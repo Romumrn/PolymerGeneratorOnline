@@ -64,16 +64,19 @@ export function simulationToJson(simulation: d3.Simulation<SimulationNode, Simul
 
     const myLinks: { "source": number, "target": number }[] = [];
     for (let node of myRawNodes) {
-        for (let link of node.links!) {
-            //filter existing link
-            if (myLinks.filter(e => ((e.target === Number(node.id)) && (e.source === Number(link.id)))).length === 0) {
-                myLinks.push({
-                    "source": Number(node.id),
-                    "target": Number(link.id),
-                })
-            }
+        if (node.links !== undefined) {
+            for (let link of node.links!) {
+                //filter existing link
+                if (myLinks.filter(e => ((e.target === Number(node.id)) && (e.source === Number(link.id)))).length === 0) {
+                    myLinks.push({
+                        "source": Number(node.id),
+                        "target": Number(link.id),
+                    })
+                }
 
+            }
         }
+
     }
 
     return {
@@ -115,7 +118,7 @@ export function PolyplyJson(simulation: d3.Simulation<SimulationNode, Simulation
 
     socket.on("res", (data: string[]) => {
 
-        const blob = new Blob( [data[1] ], { type: "text" });
+        const blob = new Blob([data[1]], { type: "text" });
 
         const a = document.createElement("a");
         a.download = "out.gro";

@@ -50,8 +50,7 @@ export function initSimulation(sizeSVG: number, sizeNodeRadius: number): d3.Simu
         .force("x", d3.forceX(sizeSVG / 2).strength(0.02))
         .force("y", d3.forceY(sizeSVG / 2).strength(0.02))
         .force("link", d3.forceLink()
-            .id(function (d: any) { return d.id; })
-            .distance(sizeNodeRadius * 2.5)
+            .distance((d: any) => { return sizeNodeRadius * 2.5 })
         )
     return simulation
 }
@@ -83,6 +82,7 @@ export function reloadSimulation(svg: d3.Selection<SVGSVGElement, unknown, null,
         if (listOfGroups.length !== 0) {
             for (let group of listOfGroups) {
                 let coords: [number, number][] = [];
+
                 group.nodes.map((d: SimulationNode) => coords.push([d.x!, d.y!]))
                 let hull = d3.polygonHull(coords)
 

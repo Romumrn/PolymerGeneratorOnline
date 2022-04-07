@@ -12,6 +12,14 @@ export function setRadius(newradius: number) {
     radius = newradius;
 }
 
+export function alarmBadLinks(id1: string, id2: string) {
+    console.log("ALERT bad Link", id1, id2);
+    d3.select(Mysvg).selectAll<SVGElement, SimulationLink>("line")
+        .filter((d: SimulationLink) => (((d.source.id === id1) && (d.target.id === id2)) || ((d.source.id === id2) && (d.target.id === id1))))
+        .attr("class", "error")
+        .attr('stroke', "red")
+}
+
 export function addNodeToSVG(newnode: SimulationNode[], simulation: any, update: () => void, warningfunction: (arg0: string) => void) {
     const node = d3.select(Mysvg).selectAll("circle")
         .data(newnode, (d: any) => d.id)
@@ -20,7 +28,7 @@ export function addNodeToSVG(newnode: SimulationNode[], simulation: any, update:
     let div: any;
     // Define the div for the tooltip
     console.log(document.getElementsByClassName("tooltip"))
-    if ( document.getElementsByClassName("tooltip").length ===0 ) {
+    if (document.getElementsByClassName("tooltip").length === 0) {
         div = d3.select("body")
             .append("div")
             .attr("class", "tooltip")
@@ -38,6 +46,7 @@ export function addNodeToSVG(newnode: SimulationNode[], simulation: any, update:
         .attr("fill", function (d: SimulationNode) { return hashStringToColor(d.resname) })
         .attr('stroke', "grey")
         .attr("stroke-width", radius / 4)
+        .attr("expand", "true")
         .attr("id", function (d: SimulationNode) { return d.id })
         .call(d3.drag<SVGCircleElement, SimulationNode>()
             .on("drag", dragged)
@@ -168,7 +177,7 @@ export function checkLink(node1: SimulationNode, node2: SimulationNode, warningf
 }
 
 export function addLinkToSVG(newLink: SimulationLink[]): void {
-    console.log( newLink)
+    console.log(newLink)
     const link = d3.select(Mysvg).selectAll("line")
         .data(newLink, (d: any) => d.source.id + "-" + d.target.id)
         .enter();
