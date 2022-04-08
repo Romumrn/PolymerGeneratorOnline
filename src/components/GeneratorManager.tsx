@@ -5,9 +5,10 @@ import PolymerViewer from './GeneratorViewer';
 import { FormState, SimulationNode, SimulationLink } from './SimulationType'
 import Warning from "./warning";
 import { simulationToJson } from './generateJson';
-import {checkLink , alarmBadLinks} from './addNodeLink';
+import { checkLink, alarmBadLinks } from './addNodeLink';
 import io from 'socket.io-client';
 import RunPolyplyDialog from "./RunPolyplyDialog";
+import submitbox from "./submitDialogBox";
 
 // Pour plus tard
 //https://github.com/korydondzila/React-TypeScript-D3/tree/master/src/components
@@ -21,7 +22,8 @@ interface StateSimulation {
   linksToAdd: SimulationLink[],
   dataForForm: { [forcefield: string]: string[] },
   loading: Boolean,
-  sending: boolean
+  sending: boolean,
+  submit: string
 }
 
 export default class GeneratorManager extends React.Component {
@@ -33,7 +35,8 @@ export default class GeneratorManager extends React.Component {
     dataForForm: {},
     Warningmessage: "",
     loading: false,
-    sending: false
+    sending: false,
+    submit : ""
   }
 
   currentAvaibleID = -1;
@@ -287,8 +290,8 @@ export default class GeneratorManager extends React.Component {
 
   Send = (density: string, name: string): void => {
     this.setState({ sending: false })
-
-    console.log(density, name)
+    this.setState({ submit:  "Sending ..."})
+ 
     const jsonpolymer = simulationToJson(this.state.Simulation!, this.currentForceField)
 
     const data = {
@@ -303,10 +306,18 @@ export default class GeneratorManager extends React.Component {
       socket.emit('runpolyply', data)
     })
 
-    socket.on("greatsuccess", (data: string) => {
+    socket.on("itp", (alors: boolean) => {
+      if (alors) {
+        this.setState({ submit:"ITP Done ! Go for gro ..."})
+      }
+    })
+
+
+    socket.on("gro", (data: string) => {
       const blob = new Blob([data], { type: "text" });
       this.setState({ loading: false })
-     
+      this.setState({ submit: ""})
+
       //then on envois le route n2 qui execute polyply gen coord
       const a = document.createElement("a");
       a.download = "out.gro";
@@ -321,6 +332,7 @@ export default class GeneratorManager extends React.Component {
     })
 
     socket.on("oups", (dicoError: any) => {
+      this.setState({ submit: ""})
       this.setState({ loading: false })
       console.log(dicoError)
 
@@ -328,25 +340,17 @@ export default class GeneratorManager extends React.Component {
       //dicErreur.errorlinks.push([resname1, idname1, resname2, idname2])
       console.log(dicoError.errorlinks.length)
       if (dicoError.errorlinks.length > 0) {
-        this.setState({ Warningmessage: "Fail ! Wrong links : "+dicoError.errorlinks})
-        for ( let i of dicoError.errorlinks){
-          alarmBadLinks( i[1].toString(), i[3].toString() )
+        this.setState({ Warningmessage: "Fail ! Wrong links : " + dicoError.errorlinks })
+        for (let i of dicoError.errorlinks) {
+          alarmBadLinks(i[1].toString(), i[3].toString())
         }
       }
       else {
         // (dicoError.disjoint === true) 
-        this.setState({ Warningmessage: "Fail ! Your molecule consists of disjoint parts.Perhaps links were not applied correctly. Peut etre une option a ajouter pour mettre 2 molecule dans le melange ????????"})
-         
+        this.setState({ Warningmessage: "Fail ! Your molecule consists of disjoint parts.Perhaps links were not applied correctly. Peut etre une option a ajouter pour mettre 2 molecule dans le melange ????????" })
       }
-
-
-
     })
-
-
   }
- 
-
 
   componentDidMount() {
     this.getDataForcefield()
@@ -385,6 +389,10 @@ export default class GeneratorManager extends React.Component {
             {this.state.loading ? (
               <><RunPolyplyDialog show={this.state.sending} send={this.Send}> </RunPolyplyDialog>
                 <CircularProgress /></>
+            ) : (<></>)
+            }
+            {this.state.submit ? ( 
+              submitbox(this.state.submit)
             ) : (<></>)
             }
           </Grid>

@@ -29,8 +29,7 @@ export default class Warning extends React.Component<propsalert> {
                     </DialogContentText>
                 </DialogContent>
                 <DialogActions>
-                    <Button onClick={() => { this.props.close() }}>Ok, I will fix my mistake !</Button>
-                    <Button onClick={() => { this.props.close() }}>Ok, Same !</Button>
+                    <Button onClick={() => { this.props.close() }}>Ok Sir, I will fix my mistake !</Button>
                 </DialogActions>
             </Dialog>
         }

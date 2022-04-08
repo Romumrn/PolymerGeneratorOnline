@@ -60,8 +60,6 @@ export function simulationToJson(simulation: d3.Simulation<SimulationNode, Simul
         }
     });
 
-
-
     const myLinks: { "source": number, "target": number }[] = [];
     for (let node of myRawNodes) {
         if (node.links !== undefined) {
@@ -73,10 +71,8 @@ export function simulationToJson(simulation: d3.Simulation<SimulationNode, Simul
                         "target": Number(link.id),
                     })
                 }
-
             }
         }
-
     }
 
     return {
