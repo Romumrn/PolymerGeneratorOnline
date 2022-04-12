@@ -7,6 +7,7 @@ import * as d3 from "d3";
 import { SimulationNode, SimulationLink, SimulationGroup } from '../SimulationType';
 import { DownloadJson } from '../generateJson';
 import { addLinkToSVG } from "../addNodeLink";
+import { decreaseID } from '../GeneratorManager'
 
 interface props {
     x: number;
@@ -17,7 +18,7 @@ interface props {
     simulation: d3.Simulation<SimulationNode, SimulationLink>;
     forcefield: string,
     handleClose: () => void;
-    handlePaste: () => void;
+    handlePaste: ( arg: any , arg2?: string) => void;
     handleUpdate: () => void;
     svg: d3.Selection<SVGSVGElement, unknown, null, undefined>;
 }
@@ -255,6 +256,19 @@ export default class CustomContextMenu extends React.Component<props> {
         //and then remove link inside svg
         this.props.svg.selectAll("line").filter((link: any) => ((link.source.id === node.id) || (link.target.id === node.id))).remove();
 
+
+  
+
+        this.props.svg.selectAll<SVGCircleElement, SimulationNode>("circle")
+        .filter((d: SimulationNode) => ( Number(d.id) > Number(node.id) ) )
+        .each( d => { 
+            d.index = d.index! - 1 
+            d.id = d.index.toString()
+        })
+ 
+        decreaseID()
+        // - Supprimer lien
+        
         this.props.handleUpdate();
         this.props.handleClose();
     }
@@ -276,7 +290,7 @@ export default class CustomContextMenu extends React.Component<props> {
                 <Divider />
                 <MenuItem onClick={() => { this.groupPolymer(this.props.selected, this.props.svg) }}> Group this polymer</MenuItem>
                 <MenuItem onClick={() => { this.removeSelectedNodes(this.props.selected) }}> Remove {this.props.selected.size()} selected nodes</MenuItem>
-                <MenuItem onClick={() => { this.props.handlePaste() }}> Paste {this.props.selected.size()} selected nodes</MenuItem>
+                <MenuItem onClick={() => { this.props.handlePaste(this.props.selected); this.props.handleClose();  }}> Paste {this.props.selected.size()} selected nodes</MenuItem>
                 <MenuItem onClick={() => { this.props.selected.attr("class", "nodes"); this.props.handleClose(); }}>Unselected</MenuItem>
                 <MenuItem onClick={() => { this.addMagicLink(this.props.selected, this.props.svg); this.props.handleClose(); }}>Link it</MenuItem>
             </div>;

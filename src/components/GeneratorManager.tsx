@@ -3,12 +3,12 @@ import * as React from "react";
 import GeneratorMenu from './GeneratorMenu';
 import PolymerViewer from './GeneratorViewer';
 import { FormState, SimulationNode, SimulationLink } from './SimulationType'
-import Warning from "./warning";
+import Warning from "./Dialog/warning";
 import { simulationToJson } from './generateJson';
 import { checkLink, alarmBadLinks } from './addNodeLink';
 import io from 'socket.io-client';
-import RunPolyplyDialog from "./RunPolyplyDialog";
-import submitbox from "./submitDialogBox";
+import RunPolyplyDialog from "./Dialog/RunPolyplyDialog";
+import submitbox from "./Dialog/submitDialogBox";
 
 // Pour plus tard
 //https://github.com/korydondzila/React-TypeScript-D3/tree/master/src/components
@@ -26,6 +26,19 @@ interface StateSimulation {
   submit: string
 }
 
+
+let currentAvaibleID = -1;
+export let generateID = (): string => {
+  currentAvaibleID++;
+  return currentAvaibleID.toString()
+}
+
+export let decreaseID = (): void => {
+  currentAvaibleID--;
+}
+
+
+
 export default class GeneratorManager extends React.Component {
 
   state: StateSimulation = {
@@ -36,14 +49,10 @@ export default class GeneratorManager extends React.Component {
     Warningmessage: "",
     loading: false,
     sending: false,
-    submit : ""
+    submit: ""
   }
 
-  currentAvaibleID = -1;
-  generateID = (): string => {
-    this.currentAvaibleID++;
-    return this.currentAvaibleID.toString()
-  }
+
 
 
   currentForceField = '';
@@ -78,7 +87,7 @@ export default class GeneratorManager extends React.Component {
       let mol = {
         "resname": res3,
         "seqid": 0,
-        "id": this.generateID(),
+        "id": generateID(),
       };
       newMolecule.push(mol)
 
@@ -122,7 +131,7 @@ export default class GeneratorManager extends React.Component {
 
       const newMolecule: SimulationNode[] = [];
       for (let node of jsonFile.nodes) {
-        const newid = this.generateID()
+        const newid = generateID()
         idModification.push({
           oldID: node.id,
           newID: newid,
@@ -183,7 +192,7 @@ export default class GeneratorManager extends React.Component {
         let mol = {
           "resname": toadd.moleculeToAdd,
           "seqid": 0,
-          "id": this.generateID(),
+          "id": generateID(),
         };
         newMolecule.push(mol)
 
@@ -286,12 +295,10 @@ export default class GeneratorManager extends React.Component {
     }
   }
 
-
-
   Send = (density: string, name: string): void => {
     this.setState({ sending: false })
-    this.setState({ submit:  "Sending ..."})
- 
+    this.setState({ submit: "Sending ..." })
+
     const jsonpolymer = simulationToJson(this.state.Simulation!, this.currentForceField)
 
     const data = {
@@ -308,7 +315,7 @@ export default class GeneratorManager extends React.Component {
 
     socket.on("itp", (alors: boolean) => {
       if (alors) {
-        this.setState({ submit:"ITP Done ! Go for gro ..."})
+        this.setState({ submit: "ITP Done ! Go for gro ..." })
       }
     })
 
@@ -316,7 +323,7 @@ export default class GeneratorManager extends React.Component {
     socket.on("gro", (data: string) => {
       const blob = new Blob([data], { type: "text" });
       this.setState({ loading: false })
-      this.setState({ submit: ""})
+      this.setState({ submit: "" })
 
       //then on envois le route n2 qui execute polyply gen coord
       const a = document.createElement("a");
@@ -332,7 +339,7 @@ export default class GeneratorManager extends React.Component {
     })
 
     socket.on("oups", (dicoError: any) => {
-      this.setState({ submit: ""})
+      this.setState({ submit: "" })
       this.setState({ loading: false })
       console.log(dicoError)
 
@@ -391,7 +398,7 @@ export default class GeneratorManager extends React.Component {
                 <CircularProgress /></>
             ) : (<></>)
             }
-            {this.state.submit ? ( 
+            {this.state.submit ? (
               submitbox(this.state.submit)
             ) : (<></>)
             }
@@ -401,8 +408,7 @@ export default class GeneratorManager extends React.Component {
               forcefield={this.currentForceField}
               getSimulation={(SimulationFromViewer: d3.Simulation<SimulationNode, SimulationLink>) => { this.setState({ Simulation: SimulationFromViewer }) }}
               newNodes={this.state.nodesToAdd}
-              newLinks={this.state.linksToAdd}
-              generateID={this.generateID} />
+              newLinks={this.state.linksToAdd}  />
           </Grid>
         </Grid>
 

@@ -8,7 +8,7 @@ import Grain from "@mui/icons-material/Grain";
 import Insights from "@mui/icons-material/Insights";
 import { FormState } from './SimulationType'
 import Typography from "@mui/material/Typography";
-import Warning from "./warning";
+import Warning from "./Dialog/warning";
 import CircularProgress from "@mui/material/CircularProgress";
 import { AutoFixHigh } from "@mui/icons-material";
 

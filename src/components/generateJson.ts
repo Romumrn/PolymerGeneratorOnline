@@ -51,8 +51,59 @@ function simulationToJsonBlob(simulation: d3.Simulation<SimulationNode, Simulati
 
 export function simulationToJson(simulation: d3.Simulation<SimulationNode, SimulationLink>, ff: string) {
 
-    const myRawNodes = simulation.nodes();
-    const _ = myRawNodes.map(obj => {
+
+    //Ok, il faut etre sur que les ID se suivent sinon crash de polyply gen-coords ! 
+    //Exemple bon : 1 - 2 - 3 - 4
+    //Exemple mauvais : 1 - 3 - 4 -5
+
+
+    //On garde une trace de l'id pour ensuite convertir les ids links en nouveaux ids
+
+    let startingnode: SimulationNode
+    let id = 0
+    let nodes: { "resname": number, "seqid": number, "id": number }[]
+    let links: { "source": number, "target": number }[]
+    let dicID: { [id: number]: string } = {}
+
+    // //Donc on commence par trouver un "debut" un noeud avec uniquement un lien"
+    // for (let node of simulation.nodes()) {
+    //     if (node.links?.length === 1) {
+    //         startingnode = node
+    //         break
+    //     }
+    // }
+    // // Si pas de debut (un cercle par exemple)
+    // if (startingnode! === undefined) {
+    //     startingnode = simulation.nodes()[0]
+    // }
+
+    // // A partir du noeud de depart on parcours les liens
+    // // Init stack with link of starting node
+    // let stack = startingnode.links
+    // let dejaparcouru: SimulationNode[] = [startingnode]
+    // //init dico 
+    // dicID[id] = startingnode.id
+    // console.log("init", ...[stack], id)
+    // id++
+    // while (stack!.length !== 0) {
+    //     let nodeEnCours = stack!.shift()!
+    //     if (dejaparcouru.includes(nodeEnCours)) {
+    //         console.log("While #", id, nodeEnCours.id , "PASS")
+    //     }
+    //     else {
+    //         dejaparcouru.push(nodeEnCours)
+    //         dicID[id] = nodeEnCours.id
+    //         stack = stack!.concat(nodeEnCours.links!)
+    //         console.log("While #", id, nodeEnCours.id)
+    //         id++
+    //     }
+    // }
+
+    // console.log(dicID)
+
+
+    // console.log("debut", startingnode!)
+    const _ = simulation.nodes().map(obj => {
         return {
             "resname": obj.resname,
             "seqid": 0,
@@ -61,7 +112,7 @@ export function simulationToJson(simulation: d3.Simulation<SimulationNode, Simul
     });
 
     const myLinks: { "source": number, "target": number }[] = [];
-    for (let node of myRawNodes) {
+    for (let node of simulation.nodes()) {
         if (node.links !== undefined) {
             for (let link of node.links!) {
                 //filter existing link

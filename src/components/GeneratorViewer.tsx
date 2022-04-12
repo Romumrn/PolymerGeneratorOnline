@@ -4,14 +4,14 @@ import CustomContextMenu from "./Viewer/CustomContextMenu";
 import { SimulationNode, SimulationLink, SimulationGroup } from './SimulationType';
 import { initSVG, initSimulation, reloadSimulation } from './Viewer/SimulationSVGFunction';
 import { addNodeToSVG, addLinkToSVG, checkLink, setSVG, setRadius } from './addNodeLink';
+import { generateID } from './GeneratorManager'
 import './GeneratorViewer.css';
-import Warning from "./warning";
+import Warning from "./Dialog/warning";
 
 interface propsviewer {
   forcefield: string,
   newNodes: SimulationNode[];
   newLinks: SimulationLink[];
-  generateID: () => string;
   getSimulation: (arg: any) => void;
 }
 
@@ -119,7 +119,6 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
     else {
       console.log("same state")
     }
-
   }
 
 
@@ -184,21 +183,38 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
     this.setState({ show: false, nodeClick: undefined, hullClick: undefined })
   };
 
-  pasteSelectedNode = (listNodesToPaste: any) => {
+  pasteThesedNodes = (listNodesToPaste: any, idStarting?: string) => {
+
     console.log("pasteSelectedNode")
     const idModification: any[] = [];
     let oldNodes: SimulationNode[] = []
-    // on parcours la selection svg des noeuds a copier 
+    //On parcours la selection svg des noeuds a copier 
     //et on inscrit l'ancien id et le nouveau dans une liste idModification
-    listNodesToPaste
-      .each((d: SimulationNode) => {
-        oldNodes.push(d)
-        idModification.push({
-          oldID: d.id,
-          resname: d.resname,
-          newID: this.props.generateID(),
-        })
-      });
+    if (idStarting) {
+      let upid = 0
+      listNodesToPaste
+        .each((d: SimulationNode) => {
+          let newId = Number(idStarting) + upid
+          oldNodes.push(d)
+          idModification.push({
+            oldID: d.id,
+            resname: d.resname,
+            newID: newId. toString() ,
+          })
+          upid++
+        });
+    }
+    else {
+      listNodesToPaste
+        .each((d: SimulationNode) => {
+          oldNodes.push(d)
+          idModification.push({
+            oldID: d.id,
+            resname: d.resname,
+            newID:  generateID(),
+          })
+        });
+    }
 
     console.log("listNodesToPaste", listNodesToPaste);
     console.log("oldNodes", oldNodes);
@@ -279,12 +295,6 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
 
   render() {
 
-
-    const PasteNodesFromContextMenu = () => {
-      this.pasteSelectedNode(d3.select(this.ref).selectAll('circle.onfocus'))
-      this.setState({ show: false })
-    }
-
     const ifContextMenuShouldAppear = (show: boolean) => {
       if (show) {
         const CircleSelected = d3.select(this.ref).selectAll('circle.onfocus');
@@ -297,7 +307,7 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
           selected={CircleSelected}
           handleClose={this.handleClose}
           svg={d3.select(this.ref)}
-          handlePaste={PasteNodesFromContextMenu}
+          handlePaste={this.pasteThesedNodes}
           handleUpdate={this.handleUpdateSVG}
           simulation={this.simulation}>
 
