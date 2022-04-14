@@ -1,4 +1,4 @@
-import { SimulationNodeDatum, SimulationLinkDatum } from 'd3';
+import { SimulationNodeDatum } from 'd3';
 
 export interface FormState {
   forcefield: string;
@@ -25,5 +25,6 @@ export interface SimulationLink extends SimulationNodeDatum {
 
 export interface SimulationGroup extends SimulationNodeDatum {
   id: number,
-  nodes: SimulationNode[]
+  nodes?: SimulationNode[],
+  nodesD3?: d3.Selection<SVGCircleElement, SimulationNode, SVGSVGElement, unknown>
 }

@@ -117,16 +117,13 @@ export default class GeneratorMenu extends React.Component<propsmenu, GeneratorM
       else if ((ext === 'itp') || (ext === 'ff')) {
         let reader = new FileReader();
         reader.onload = (event: any) => {
-
           this.setState({ Warningmessage: event.target.result })
-
         }
         reader.readAsText(file);
       }
-      else{
+      else {
         this.setState({ Warningmessage: "Fichier inconnu" })
       }
-
     }
     else {
       this.setState({ Warningmessage: "Only one files should be upload" })

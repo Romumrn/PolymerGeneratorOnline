@@ -50,13 +50,32 @@ export function initSimulation(sizeSVG: number, sizeNodeRadius: number): d3.Simu
         .force("x", d3.forceX(sizeSVG / 2).strength(0.02))
         .force("y", d3.forceY(sizeSVG / 2).strength(0.02))
         .force("link", d3.forceLink()
-            .distance((d: any) => { return sizeNodeRadius * 2.5 })
+            .distance(() => { return sizeNodeRadius * 2.5 })
         )
     return simulation
 }
 
 export function reloadSimulation(svg: d3.Selection<SVGSVGElement, unknown, null, undefined>, simulation: d3.Simulation<SimulationNode, SimulationLink>, groupsData: SimulationGroup[]) {
     console.log("Reload simulation");
+
+    const updatePolymerPath = (listOfGroups: SimulationGroup[]) => {
+        //If groups are created
+        if (listOfGroups.length !== 0) {
+            for (let group of listOfGroups) {
+                let coords: [number, number][] = [];
+
+                group.nodes!.map((d: SimulationNode) => coords.push([d.x!, d.y!]))
+                let hull = d3.polygonHull(coords)
+
+                svg.selectAll("path")
+                    .filter(function () {
+                        return d3.select(this).attr("group") === group.id.toString(); // filter by single attribute
+                    })
+                    .data([hull])
+                    .attr("d", (d) => "M" + d!.join("L") + "Z")
+            }
+        }
+    }
 
     // Define ticked with coords 
     const ticked = () => {
@@ -77,33 +96,22 @@ export function reloadSimulation(svg: d3.Selection<SVGSVGElement, unknown, null,
         svg.selectAll("circle").raise()
     }
 
-    const updatePolymerPath = (listOfGroups: SimulationGroup[]) => {
-        //If groups are created
-        if (listOfGroups.length !== 0) {
-            for (let group of listOfGroups) {
-                let coords: [number, number][] = [];
-
-                group.nodes.map((d: SimulationNode) => coords.push([d.x!, d.y!]))
-                let hull = d3.polygonHull(coords)
-
-                svg.selectAll("path")
-                    .filter(function () {
-                        return d3.select(this).attr("group") === group.id.toString(); // filter by single attribute
-                    })
-                    .data([hull])
-                    .attr("d", (d) => "M" + d!.join("L") + "Z")
-            }
-        }
-    }
-
     const snodes: SimulationNode[] = []
-    svg.selectAll("circle").each((d: any) => snodes.push(d))
+    svg.selectAll("circle.nodes").each((d: any) => snodes.push(d))
+    svg.selectAll("circle.onfocus").each((d: any) => snodes.push(d))
+
+    //DETECTION DE NOUVEAU LIENS ???????????????????????
     const slinks: SimulationLink[] = [];
     svg.selectAll("line").each((d: any) => slinks.push(d))
 
-    simulation.stop()
-    simulation.nodes(snodes)
+    const bignodes: SimulationNode[] = []
+    svg.selectAll("circle.BIGnodes").each((d: any) => bignodes.push(d))
+
+    // simulation.stop()
+
+    simulation.nodes(snodes.concat(bignodes) )
         .force<d3.ForceLink<SimulationNode, SimulationLink>>("link")?.links(slinks);
+    
     simulation
         .on("tick", ticked)
         .alpha(1)

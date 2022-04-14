@@ -5,7 +5,7 @@ import PolymerViewer from './GeneratorViewer';
 import { FormState, SimulationNode, SimulationLink } from './SimulationType'
 import Warning from "./Dialog/warning";
 import { simulationToJson } from './generateJson';
-import { checkLink, alarmBadLinks } from './addNodeLink';
+import { alarmBadLinks } from './addNodeLink';
 import io from 'socket.io-client';
 import RunPolyplyDialog from "./Dialog/RunPolyplyDialog";
 import submitbox from "./Dialog/submitDialogBox";
@@ -38,7 +38,6 @@ export let decreaseID = (): void => {
 }
 
 
-
 export default class GeneratorManager extends React.Component {
 
   state: StateSimulation = {
@@ -52,10 +51,13 @@ export default class GeneratorManager extends React.Component {
     submit: ""
   }
 
-
-
-
   currentForceField = '';
+
+  // warningfunction = (message: string) : void =>  {
+  //   this.setState({ Warningmessage: message })
+  // }
+
+  // setWarning(warningfunction: any)
 
   addprotsequence = (sequence: string) => {
     let i = 0;
@@ -109,7 +111,6 @@ export default class GeneratorManager extends React.Component {
     }
     this.setState({ linksToAdd: newlinks });
     this.setState({ nodesToAdd: newMolecule });
-
   }
 
   addnodeFromJson = (jsonFile: any): void => {
@@ -229,9 +230,6 @@ export default class GeneratorManager extends React.Component {
     const node2 = listnode?.find(element => element.id === id2);
 
     console.log(listnode, node1, node2)
-    const warningfunction = (message: string) => {
-      this.setState({ Warningmessage: message })
-    }
 
 
     if (node1 === undefined) {
@@ -243,7 +241,7 @@ export default class GeneratorManager extends React.Component {
       return
     }
 
-    checkLink(node1, node2, warningfunction)
+    // checkLink(node1, node2)
 
     let newlinks = [{
       "source": node1,
@@ -408,7 +406,7 @@ export default class GeneratorManager extends React.Component {
               forcefield={this.currentForceField}
               getSimulation={(SimulationFromViewer: d3.Simulation<SimulationNode, SimulationLink>) => { this.setState({ Simulation: SimulationFromViewer }) }}
               newNodes={this.state.nodesToAdd}
-              newLinks={this.state.linksToAdd}  />
+              newLinks={this.state.linksToAdd} />
           </Grid>
         </Grid>
 

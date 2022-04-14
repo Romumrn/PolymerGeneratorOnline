@@ -6,8 +6,9 @@ import Typography from '@mui/material/Typography';
 import * as d3 from "d3";
 import { SimulationNode, SimulationLink, SimulationGroup } from '../SimulationType';
 import { DownloadJson } from '../generateJson';
-import { addLinkToSVG } from "../addNodeLink";
+import { addLinkToSVG, addNodeToSVG } from "../addNodeLink";
 import { decreaseID } from '../GeneratorManager'
+
 
 interface props {
     x: number;
@@ -18,7 +19,7 @@ interface props {
     simulation: d3.Simulation<SimulationNode, SimulationLink>;
     forcefield: string,
     handleClose: () => void;
-    handlePaste: ( arg: any , arg2?: string) => void;
+    handlePaste: (arg: any, arg2?: string) => void;
     handleUpdate: () => void;
     svg: d3.Selection<SVGSVGElement, unknown, null, undefined>;
 }
@@ -29,24 +30,20 @@ export default class CustomContextMenu extends React.Component<props> {
         this.props.handleUpdate()
     }
 
-    addMagicLink(selected: d3.Selection<SVGSVGElement, SimulationNode, null, undefined>, svg: d3.Selection<SVGSVGElement, unknown, null, undefined>) {
+    addMagicLink() {
         console.log("Add link between node to create a chain")
-
         let nodetoLink: SimulationNode[] = [];
 
+        let newlinks = []
         //Recherche les nodes sans link ou avec un seul link
-        selected.each((d: SimulationNode) => {
-            if (!d.links) {
-                nodetoLink.push(d)
-            }
-            else if (d.links!.length === 1) {
-                nodetoLink.push(d)
-            }
+        this.props.svg.selectAll<SVGPathElement, SimulationNode>("circle")
+        .each((d: SimulationNode) => {
+            console.log(d)
+            if (!d.links) nodetoLink.push(d)
+            else if (d.links!.length === 1) nodetoLink.push(d)
+            //else console.log( "QUOI ? ", d)
         })
 
-        let newlinks = []
-
-        console.log(nodetoLink)
         // Parcourir la liste pour trouver noeud avec lien manquant avec id consecutif 
         let nextid: number = parseInt(nodetoLink[0].id) + 1
         for (let node of nodetoLink) {
@@ -67,13 +64,12 @@ export default class CustomContextMenu extends React.Component<props> {
                 if (nodetarget.links) nodetarget.links.push(node);
                 else nodetarget.links = [node];
 
-
-                nextid = parseInt(node.id) + 1
             }
-            else nextid = parseInt(node.id) + 1
+            nextid = parseInt(node.id) + 1
+
         }
         addLinkToSVG(newlinks)
-        this.props.handleUpdate();
+        this.update()
     }
 
     removeHull = (hull: Element, svg: d3.Selection<SVGSVGElement, unknown, null, undefined>) => {
@@ -85,6 +81,15 @@ export default class CustomContextMenu extends React.Component<props> {
                 return (this.getAttribute("group") === id)
             })
             .remove();
+
+        this.props.svg.selectAll<SVGPathElement, SimulationNode>("circle.nodes")
+            .filter((d: SimulationNode) => {
+                return (d.group === parseInt(id))
+            })
+            .each((d: SimulationNode) => {
+                d.group = undefined
+            });
+
 
         this.props.handleClose();
     }
@@ -187,18 +192,83 @@ export default class CustomContextMenu extends React.Component<props> {
         this.props.handleClose();
     }
 
-    createPolymerPolygon = (listNodesD3: d3.Selection<SVGCircleElement, SimulationNode, SVGSVGElement, unknown>, svg: d3.Selection<SVGSVGElement, unknown, null, undefined>) => {
+
+    expandBigNodes = (bignode: SVGPathElement, svg: d3.Selection<SVGSVGElement, unknown, null, undefined>, dataNodes: SimulationGroup): void => {
+        console.log("EXPAND BIG BANG  !", bignode, dataNodes)
+        bignode.remove()
+        const x = bignode.getAttribute("cx")
+        const y = bignode.getAttribute("cy")
+        dataNodes.nodesD3!.data().map(n => n.x = parseInt(x!))
+        dataNodes.nodesD3!.data().map(n => n.y = parseInt(y!))
+        addNodeToSVG(dataNodes.nodesD3!.data(), this.props.simulation, this.props.handleUpdate)
+
+        let listLink: SimulationLink[] = []
+        for (let node of dataNodes.nodesD3!.data()) {
+            for (let nodelink of node.links!)
+                listLink.push({
+                    "source": node,
+                    "target": nodelink
+                });
+        }
+
+        addLinkToSVG(listLink)
+        this.props.svg.selectAll<SVGPathElement, SimulationGroup>("path")
+            .filter(function (d: SimulationGroup): boolean {
+                return (this.getAttribute("group") === dataNodes.id.toString())
+            })
+            .attr("display", '')
+        this.update()
+    }
+
+    colapse = (hull: SVGPathElement, svg: d3.Selection<SVGSVGElement, unknown, null, undefined>, listnodes: d3.Selection<SVGCircleElement, SimulationNode, SVGSVGElement, unknown>): void => {
+        let mongroup: SimulationGroup = { id: parseInt(hull.getAttribute("group")!), nodesD3: listnodes }
+
+        //Cheatcode
+        const self = this
+        console.log("Hello, on COLLAPSE")
+        console.log("SUPPRIME MOI CA !!", listnodes)
+        //Remove nodes from the svg 
+        svg.selectAll<SVGCircleElement, SimulationNode>("circle")
+            .filter((n: SimulationNode) => (n.group === mongroup.id))
+            .remove()
+
+        //Remove links from the svg
+        const listid = listnodes.data().map(n => n.id)
+
+        svg.selectAll("line").filter((link: any) => ((listid.includes(link.source.id) || listid.includes(link.target.id)))).remove();
+
+        console.log("data from svg", svg.selectAll("circle.BIGnodes").data(), "and data from fonction", mongroup)
+
+        let dataUpdate: SimulationGroup[] = svg.selectAll<SVGCircleElement, SimulationGroup>("circle.BIGnodes").data()
+        dataUpdate.push(mongroup)
+        svg.selectAll("circle.BIGnodes")
+            .data(dataUpdate)
+            .enter()
+            .append('circle')
+            .attr('class', "BIGnodes")
+            .attr("r", function (d: SimulationGroup) { return 30 + d.nodesD3!.data().length / 2  })
+            .attr("fill", hull.getAttribute("fill"))
+            .style("opacity", 0.7)
+            .attr("id", function (d: SimulationGroup) { return d.id })
+            .on('click', function (this: SVGPathElement, event: any) {
+                self.expandBigNodes(this, svg, mongroup)
+            });
+    }
+
+    createPolymerPolygon = (listNodesD3: d3.Selection<SVGCircleElement, SimulationNode, SVGSVGElement, unknown>, svg: d3.Selection<SVGSVGElement, unknown, null, undefined>, groupeID?: number) => {
 
         console.log("createPolymerPolygon with ", listNodesD3)
 
-        let groupeID = 1;
-        svg.selectAll('path')
-            .each(function () {
-                var id = d3.select(this).attr("group");
-                var numberid: number = +id;
-                groupeID = numberid + 1;
-            });
-        //console.log(groupeID)
+        console.log(groupeID)
+        if (groupeID === undefined) {
+            groupeID = 1;
+            svg.selectAll('path')
+                .each(function () {
+                    var id = d3.select(this).attr("group");
+                    var numberid: number = +id;
+                    groupeID = numberid + 1;
+                });
+        }
 
         let selectedNodesCoords: [number, number][] = [];
         listNodesD3
@@ -207,10 +277,10 @@ export default class CustomContextMenu extends React.Component<props> {
                 d.group = groupeID
             });
 
-        const color = d3.interpolateTurbo(groupeID / 10);
 
+        console.log("path", selectedNodesCoords)
+        const color = d3.interpolateTurbo(groupeID! / 10);
         let hull = d3.polygonHull(selectedNodesCoords);
-
         let self = this
 
         svg
@@ -218,8 +288,8 @@ export default class CustomContextMenu extends React.Component<props> {
             .data([hull])
             .enter()
             .append("path")
-            .attr("expand", "false")
-            .attr("group", groupeID)
+            // .attr("expand", "false")
+            .attr("group", groupeID!)
             .attr("class", "area")
             .attr("d", (d) => "M" + d!.join("L") + "Z")
             .attr("fill", color)
@@ -229,17 +299,16 @@ export default class CustomContextMenu extends React.Component<props> {
             .attr("stroke-linejoin", "round")
             .style("opacity", 0.2)
             .on('click', function (this: SVGPathElement, event: any, d: [number, number][] | null) {
-                listNodesD3.each((node: SimulationNode) => { console.log(node) })
-                if (this.getAttribute("expand") === "true") {
-                    listNodesD3.attr("display", "none")
-                    self.update();
-                    this.setAttribute("expand", "false")
-                }
-                else {
-                    listNodesD3.attr('display', null)
-                    self.update();
-                    this.setAttribute("expand", "true")
-                }
+                // if (this.getAttribute("expand") === "false") {
+                self.colapse(this, svg, listNodesD3)
+                self.update();
+                this.setAttribute("display", "none")
+                // }
+                // else {
+                //     //listNodesD3.attr('display', null)
+                //     self.update();
+                //     this.setAttribute("expand", "false")
+                // }
             });
     }
 
@@ -257,18 +326,16 @@ export default class CustomContextMenu extends React.Component<props> {
         this.props.svg.selectAll("line").filter((link: any) => ((link.source.id === node.id) || (link.target.id === node.id))).remove();
 
 
-  
-
+        //Update new ID to fit with polyply 
         this.props.svg.selectAll<SVGCircleElement, SimulationNode>("circle")
-        .filter((d: SimulationNode) => ( Number(d.id) > Number(node.id) ) )
-        .each( d => { 
-            d.index = d.index! - 1 
-            d.id = d.index.toString()
-        })
- 
+            .filter((d: SimulationNode) => (Number(d.id) > Number(node.id)))
+            .each(d => {
+                d.index = d.index! - 1
+                d.id = d.index.toString()
+            })
+
         decreaseID()
-        // - Supprimer lien
-        
+
         this.props.handleUpdate();
         this.props.handleClose();
     }
@@ -290,9 +357,9 @@ export default class CustomContextMenu extends React.Component<props> {
                 <Divider />
                 <MenuItem onClick={() => { this.groupPolymer(this.props.selected, this.props.svg) }}> Group this polymer</MenuItem>
                 <MenuItem onClick={() => { this.removeSelectedNodes(this.props.selected) }}> Remove {this.props.selected.size()} selected nodes</MenuItem>
-                <MenuItem onClick={() => { this.props.handlePaste(this.props.selected); this.props.handleClose();  }}> Paste {this.props.selected.size()} selected nodes</MenuItem>
+                <MenuItem onClick={() => { this.props.handlePaste(this.props.selected); this.props.handleClose(); }}> Paste {this.props.selected.size()} selected nodes</MenuItem>
                 <MenuItem onClick={() => { this.props.selected.attr("class", "nodes"); this.props.handleClose(); }}>Unselected</MenuItem>
-                <MenuItem onClick={() => { this.addMagicLink(this.props.selected, this.props.svg); this.props.handleClose(); }}>Link it</MenuItem>
+
             </div>;
         } else {
             return null;
@@ -317,15 +384,24 @@ export default class CustomContextMenu extends React.Component<props> {
         else return;
     }
 
+    shouldIclose = (event: React.MouseEvent) => {
+        event.preventDefault();
+        const element = document.elementFromPoint(event.clientX, event.clientY);
+        console.log( element ) 
+        return false
+      };
+    
+
     render() {
         return (
             <Menu
-                //onClose={this.handleClose}
+                onClose={ (event) => this.shouldIclose}
                 anchorReference="anchorPosition"
                 anchorPosition={{ top: this.props.y + 2, left: this.props.x + 2 }}
                 open={true} >
                 {this.ifnode()}
                 {this.ifSelectedNode()}
+                <MenuItem onClick={() => { this.addMagicLink(); this.props.handleClose(); }}>Magic Link it</MenuItem>
                 <MenuItem onClick={() => { this.removeBadLinks(this.props.svg) }}>Remove bad links</MenuItem>
                 <MenuItem onClick={() => { DownloadJson(this.props.simulation, this.props.forcefield); this.props.handleClose(); }}>Download Json</MenuItem>
                 <MenuItem onClick={this.props.handleClose}>Close</MenuItem>

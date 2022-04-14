@@ -51,55 +51,71 @@ function simulationToJsonBlob(simulation: d3.Simulation<SimulationNode, Simulati
 
 export function simulationToJson(simulation: d3.Simulation<SimulationNode, SimulationLink>, ff: string) {
 
+    let nodes:{ "resname": string, "seqid": number ,"id": Number }[] = []
 
-    //Ok, il faut etre sur que les ID se suivent sinon crash de polyply gen-coords ! 
-    //Exemple bon : 1 - 2 - 3 - 4
-    //Exemple mauvais : 1 - 3 - 4 -5
+    let myLinks: { "source": number, "target": number }[] = [];
 
 
-    //On garde une trace de l'id pour ensuite convertir les ids links en nouveaux ids
+    for (let n of simulation.nodes()) {
+        let bignodeinfo = []
+        if (n.resname === undefined) {
+            //TRES SALE 
+            //A CORRIGER !!!!!!!!!!!!!!!!!!
+            let bign: any = n
+            for (let i of bign.nodesD3.data()) {
+                nodes.push({
+                    "resname": i.resname,
+                    "seqid": 0,
+                    "id": Number(i.id)
+                })
 
-    let startingnode: SimulationNode
-    let id = 0
-    let nodes: { "resname": number, "seqid": number, "id": number }[]
-    let links: { "source": number, "target": number }[]
-    let dicID: { [id: number]: string } = {}
+                if (i.links !== undefined) {
+                    for (let link of i.links!) {
+                        //filter existing link
+                        if (myLinks.filter(e => ((e.target === Number(i.id)) && (e.source === Number(link.id)))).length === 0) {
+                            myLinks.push({
+                                "source": Number(i.id),
+                                "target": Number(link.id),
+                            })
+                        }
+                    }
+                }
 
-    // //Donc on commence par trouver un "debut" un noeud avec uniquement un lien"
-    // for (let node of simulation.nodes()) {
-    //     if (node.links?.length === 1) {
-    //         startingnode = node
-    //         break
-    //     }
-    // }
-    // // Si pas de debut (un cercle par exemple)
-    // if (startingnode! === undefined) {
-    //     startingnode = simulation.nodes()[0]
-    // }
+            }
+        }
+        else {
+            nodes.push({
+                "resname": n.resname,
+                "seqid": 0,
+                "id": Number(n.id)
+            })
+            if (n.links !== undefined) {
+                for (let link of n.links!) {
+                    //filter existing link
+                    if (myLinks.filter(e => ((e.target === Number(n.id)) && (e.source === Number(link.id)))).length === 0) {
+                        myLinks.push({
+                            "source": Number(n.id),
+                            "target": Number(link.id),
+                        })
+                    }
+                }
+            }
+        }
 
-    // // A partir du noeud de depart on parcours les liens
-    // // Init stack with link of starting node
-    // let stack = startingnode.links
-    // let dejaparcouru: SimulationNode[] = [startingnode]
-    // //init dico 
-    // dicID[id] = startingnode.id
-    // console.log("init", ...[stack], id)
-    // id++
-    // while (stack!.length !== 0) {
-    //     let nodeEnCours = stack!.shift()!
-    //     if (dejaparcouru.includes(nodeEnCours)) {
-    //         console.log("While #", id, nodeEnCours.id , "PASS")
-    //     }
-    //     else {
-    //         dejaparcouru.push(nodeEnCours)
-    //         dicID[id] = nodeEnCours.id
-    //         stack = stack!.concat(nodeEnCours.links!)
-    //         console.log("While #", id, nodeEnCours.id)
-    //         id++
-    //     }
-    // }
+    }
+ 
+    return {
+        "forcefield": ff,
+        "directed": false,
+        "multigraph": false,
+        "graph": {},
+        "nodes": nodes,
+        "links": myLinks
+    }
+}
 
-    // console.log(dicID)
+export function simulationToJsonold(simulation: d3.Simulation<SimulationNode, SimulationLink>, ff: string) {
+    console.log(simulation.nodes())
 
 
     // console.log("debut", startingnode!)
@@ -179,14 +195,4 @@ export function PolyplyJson(simulation: d3.Simulation<SimulationNode, Simulation
         a.remove();
 
     })
-    //socket.on('evt2', data)
-
-
-    // fetch('/testPolyply', {
-    //     method: 'POST',
-    //     headers: {
-    //         'Content-Type': 'application/json;charset=utf-8'
-    //     },
-    //     body: blob
-    // });
 }
