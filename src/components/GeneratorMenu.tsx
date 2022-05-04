@@ -14,6 +14,7 @@ import { AutoFixHigh } from "@mui/icons-material";
 
 interface propsmenu {
   setForcefield: (ff: string) => void,
+  addFromITP: (itp: string) => void,
   addnodeFromJson: (jsondata: JSON) => void,
   addnode: (arg0: FormState) => void,
   addlink: (arg1: any, arg2: any) => void,
@@ -114,7 +115,14 @@ export default class GeneratorMenu extends React.Component<propsmenu, GeneratorM
         }
         reader.readAsText(file);
       }
-      else if ((ext === 'itp') || (ext === 'ff')) {
+      else if (ext === 'itp') {
+        let reader = new FileReader();
+        reader.onload = (event: any) => {
+          this.props.addFromITP(event.target.result)
+        }
+        reader.readAsText(file);
+      }
+      else if (ext === 'ff') {
         let reader = new FileReader();
         reader.onload = (event: any) => {
           this.setState({ Warningmessage: event.target.result })

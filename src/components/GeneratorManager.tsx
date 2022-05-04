@@ -9,6 +9,7 @@ import { alarmBadLinks } from './addNodeLink';
 import io from 'socket.io-client';
 import RunPolyplyDialog from "./Dialog/RunPolyplyDialog";
 import submitbox from "./Dialog/submitDialogBox";
+import ItpFile, { TopFile } from 'itp-parser';
 
 // Pour plus tard
 //https://github.com/korydondzila/React-TypeScript-D3/tree/master/src/components
@@ -34,6 +35,7 @@ export let generateID = (): string => {
 }
 
 export let decreaseID = (): void => {
+  console.log("new currentAvaibleID", currentAvaibleID)
   currentAvaibleID--;
 }
 
@@ -164,7 +166,92 @@ export default class GeneratorManager extends React.Component {
       this.setState({ linksToAdd: newlinks });
       this.setState({ nodesToAdd: newMolecule });
     }
+  }
 
+
+  addFromITP = ( itpstring : string ) => {
+    const nodesandlinks = this.processITP( itpstring )
+    this.setState({ nodesToAdd: nodesandlinks![0] });
+    this.setState({ linksToAdd: nodesandlinks![1] });
+  }
+
+  processITP = (itpstring: string) => {
+    const itp = ItpFile.readFromString(itpstring);
+    const atoms = itp.getField('atoms')
+    const links = itp.getField('bonds')
+    let good = true
+    // 1st generer une liste de noeuds
+
+    console.log("atoms", atoms.length)
+    console.log("links", links.length)
+    const newMolecules: SimulationNode[] = [];
+
+    // convert to node object et injecte dans la list
+    //Voila la forme du bordel
+    // 1 P5    1 POPE NH3  1  0.0
+    //Super pratique 
+    //Garder en memoire l'id d'avant sur l'itp 
+    let oldid = 0
+
+
+    for (let nodestr of atoms) {
+      const nodelist = nodestr.split(' ').filter((e) => { return e !== "" })
+      // 2nd check s'ils sont inside le forcefield 
+      if (!(this.state.dataForForm[this.currentForceField].includes(nodelist[3]))) {
+        this.setState({ Warningmessage: nodelist[3] + " not in " + this.currentForceField })
+        console.log(nodelist[3] + " not in " + this.currentForceField)
+        good = false
+        break
+      }
+      else if (nodelist[2] !== oldid.toString()) {
+        let mol = {
+          "resname": nodelist[3],
+          "seqid": 0,
+          "id": generateID(),
+        };
+
+        newMolecules.push(mol)
+        oldid = parseInt(nodelist[2])
+      }
+    }
+
+    if (good) {
+
+      let newlinks = []
+      // 3rd faire la liste des liens
+      for (let linkstr of links) {
+        if (linkstr.startsWith(";")) continue
+        else if (linkstr.startsWith("#")) continue
+        else {
+          const link = linkstr.split(' ').filter((e) => { return e !== "" })
+
+          console.log("add this link ", link)
+          let idlink1 = parseInt(atoms[parseInt(link[0]) - 1].split(' ').filter((e) => { return e !== "" })[2])
+          let idlink2 = parseInt(atoms[parseInt(link[1]) - 1].split(' ').filter((e) => { return e !== "" })[2])
+
+          let node1 = newMolecules[idlink1 - 1]
+          let node2 = newMolecules[idlink2 - 1]
+
+          if (idlink1 !== idlink2) {
+            newlinks.push({
+              "source": newMolecules[idlink1 - 1],
+              "target": newMolecules[idlink2 - 1]
+            });
+
+            if (node1.links) node1.links.push(node2);
+            else node1.links = [node2];
+
+            if (node2.links) node2.links.push(node1);
+            else node2.links = [node1];
+
+          }
+        }
+      }
+
+      return( [newMolecules , newlinks  ])
+      
+    }
+    // 4th envoyer tout ca dans la simulation !!
   }
 
   setForcefield = (ff: string): void => {
@@ -229,9 +316,6 @@ export default class GeneratorManager extends React.Component {
     const node1 = listnode?.find(element => element.id === id1);
     const node2 = listnode?.find(element => element.id === id2);
 
-    console.log(listnode, node1, node2)
-
-
     if (node1 === undefined) {
       this.setState({ Warningmessage: "Nodes id number " + id1 + " does not exist" });
       return
@@ -240,9 +324,7 @@ export default class GeneratorManager extends React.Component {
       this.setState({ Warningmessage: "Nodes id number " + id2 + " does not exist" });
       return
     }
-
-    // checkLink(node1, node2)
-
+ 
     let newlinks = [{
       "source": node1,
       "target": node2
@@ -254,30 +336,6 @@ export default class GeneratorManager extends React.Component {
     else node2.links = [node1];
 
     this.setState({ linksToAdd: newlinks });
-  }
-
-  removenode = (id: string): void => {
-    //remove node with a copy of state
-    var nodescopy = [...this.state.nodesToAdd];
-    var index = nodescopy.findIndex(node => (node.id === id));
-    console.log("Remove node ", id);
-    if (index !== -1) {
-      nodescopy.splice(index, 1);
-      this.setState({ nodesToAdd: nodescopy });
-    }
-
-    //remove link with a copy of state
-    let linkscopy = [...this.state.linksToAdd];
-    //first remove links of this node
-    let indexlinktoremove = linkscopy.findIndex(e => (e.source.id === id) || (e.target.id === id));
-    //si index = -1, pas de lien trouvé
-    if (indexlinktoremove !== -1) {
-      do {
-        linkscopy.splice(indexlinktoremove, 1);
-        indexlinktoremove = linkscopy.findIndex(e => (e.source.id === id) || (e.target.id === id));
-      } while (indexlinktoremove !== -1); // tant qu'il reste des links
-    }
-    this.setState({ linksToAdd: linkscopy });
   }
 
   ClickToSend = (): void => {
@@ -311,8 +369,12 @@ export default class GeneratorManager extends React.Component {
       socket.emit('runpolyply', data)
     })
 
-    socket.on("itp", (alors: boolean) => {
-      if (alors) {
+    socket.on("itp", (itp: string) => {
+
+      // Besoin de verifier que l'itp fourni par polyply est le meme polymere que celui afficher
+      console.log(itp)
+      if (itp !== "") {
+        this.processITP(itp)
         this.setState({ submit: "ITP Done ! Go for gro ..." })
       }
     })
@@ -365,7 +427,7 @@ export default class GeneratorManager extends React.Component {
 
   // fetching the GET route from the Express server which matches the GET route from server.js
   getDataForcefield = async () => {
-    const response = await fetch('/api/data');
+    const response = await fetch('/api/databetter');
     const body = await response.json();
     console.log("load data forcefield")
     if (response.status !== 200) {
@@ -383,6 +445,7 @@ export default class GeneratorManager extends React.Component {
         <Grid container spacing={2}>
           <Grid item xs={4}>
             <GeneratorMenu
+              addFromITP={this.addFromITP}
               addprotsequence={this.addprotsequence}
               setForcefield={this.setForcefield}
               addnodeFromJson={this.addnodeFromJson}

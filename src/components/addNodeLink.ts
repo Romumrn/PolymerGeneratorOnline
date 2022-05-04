@@ -108,6 +108,7 @@ export function addNodeToSVG(newnode: SimulationNode[], simulation: any, update:
         d.fx = null;
         d.fy = null;
 
+        //Check contact when drag node
         const closest = incontact(d)
         if (closest) {
             console.log("closest", closest)

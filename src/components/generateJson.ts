@@ -51,7 +51,7 @@ function simulationToJsonBlob(simulation: d3.Simulation<SimulationNode, Simulati
 
 export function simulationToJson(simulation: d3.Simulation<SimulationNode, SimulationLink>, ff: string) {
 
-    let nodes:{ "resname": string, "seqid": number ,"id": Number }[] = []
+    let nodes: { "resname": string, "seqid": number, "id": Number }[] = []
 
     let myLinks: { "source": number, "target": number }[] = [];
 
@@ -103,7 +103,8 @@ export function simulationToJson(simulation: d3.Simulation<SimulationNode, Simul
         }
 
     }
- 
+
+    console.log("simulationToJson", "nodes", nodes,   "links", myLinks)
     return {
         "forcefield": ff,
         "directed": false,
@@ -141,6 +142,7 @@ export function simulationToJsonold(simulation: d3.Simulation<SimulationNode, Si
             }
         }
     }
+
 
     return {
         "forcefield": ff,

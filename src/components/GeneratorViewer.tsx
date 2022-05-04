@@ -103,21 +103,9 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
 
 
   componentDidUpdate(prevProps: propsviewer, prevStates: statecustommenu) {
-    console.log("componentDidUpdate");
-
     //Check state and props 
-    if ((prevProps.newNodes === this.props.newNodes) && (prevProps.newLinks === this.props.newLinks)) {
-    }
-    else {
-      this.UpdateSVG();
-    }
-
-    if (this.state.nodeToRemove !== prevStates.nodeToRemove) {
-      console.log(this.state);
+    if ((prevProps.newNodes !== this.props.newNodes) || (prevProps.newLinks !== this.props.newLinks) || (this.state.nodeToRemove !== prevStates.nodeToRemove)) {
       this.UpdateSVG()
-    }
-    else {
-      console.log("same state")
     }
   }
 
@@ -126,6 +114,7 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
   UpdateSVG = () => {
     console.log("UpdateSVG", this)
     const svgContext = d3.select(this.ref);
+
 
     // Verifier si on doit bien ajouter des props ou si c'est deja fait 
     if (this.prevPropsNewLink !== this.props.newLinks) {
@@ -137,7 +126,6 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
       }
       addLinkToSVG(Linktoadd)
     }
-
     // Si des news props apparaissent depuis manager on ajoute les noeuds !!!
     if (this.prevPropsNewnode !== this.props.newNodes) {
       addNodeToSVG(this.props.newNodes, this.simulation, this.handleUpdateSVG)
@@ -146,6 +134,7 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
       this.prevPropsNewLink = this.props.newLinks;
       this.prevPropsNewnode = this.props.newNodes;
     }
+
     // Build a list of grouped nodes instead of compute it a each iteration
     const groups: SimulationGroup[] = [];
 
@@ -271,9 +260,9 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
     console.log("Custom menu");
     event.preventDefault();
     const element = document.elementFromPoint(event.clientX, event.clientY);
+    console.log(element)
     if (element?.tagName === "circle") {
-      const nodeToRm: any = d3.select(this.ref).selectAll("circle").filter((d: any) => (d.id === element.id)).data()[0]
-      console.log(nodeToRm)
+      const nodeToRm: any = d3.select(element).data()[0]
       this.setState({ x: event.clientX, y: event.clientY, nodeClick: nodeToRm, show: true, });
     }
     else if (element?.tagName === "path") {
@@ -305,7 +294,7 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
           nodeClick={this.state.nodeClick}
           hullClick={this.state.hullClick}
           selected={CircleSelected}
-          handleClose={this.handleClose}
+
           svg={d3.select(this.ref)}
           handlePaste={this.pasteThesedNodes}
           handleUpdate={this.handleUpdateSVG}
@@ -316,12 +305,21 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
       else return;
     }
 
+
+    const clickAncCloseMenu = (event: React.MouseEvent) => {
+      if (this.state.show) {
+        this.handleClose()
+      }
+
+    }
+
     return (
       <div className="svg"
+        onClick={(e) => { clickAncCloseMenu(e) }}
         onContextMenu={this.handleContextMenu}
         style={{ cursor: 'context-menu' }}
         ref={(ref: HTMLDivElement) => this.frame = ref} >
-        
+
         <svg className="container" id="svg" ref={(ref: SVGSVGElement) => this.ref = ref}></svg>
 
         <Warning message={this.state.Warningmessage} close={() => { this.setState({ Warningmessage: "" }) }}></Warning>
