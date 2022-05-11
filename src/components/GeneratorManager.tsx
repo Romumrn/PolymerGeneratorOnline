@@ -6,7 +6,7 @@ import { FormState, SimulationNode, SimulationLink } from './SimulationType'
 import Warning from "./Dialog/warning";
 import { simulationToJson } from './generateJson';
 import { alarmBadLinks } from './addNodeLink';
-import io from 'socket.io-client';
+import SocketIo from 'socket.io-client';
 import RunPolyplyDialog from "./Dialog/RunPolyplyDialog";
 import submitbox from "./Dialog/submitDialogBox";
 import ItpFile, { TopFile } from 'itp-parser';
@@ -169,13 +169,7 @@ export default class GeneratorManager extends React.Component {
   }
 
 
-  addFromITP = ( itpstring : string ) => {
-    const nodesandlinks = this.processITP( itpstring )
-    this.setState({ nodesToAdd: nodesandlinks![0] });
-    this.setState({ linksToAdd: nodesandlinks![1] });
-  }
-
-  processITP = (itpstring: string) => {
+  addFromITP = (itpstring: string) => {
     const itp = ItpFile.readFromString(itpstring);
     const atoms = itp.getField('atoms')
     const links = itp.getField('bonds')
@@ -248,10 +242,91 @@ export default class GeneratorManager extends React.Component {
         }
       }
 
-      return( [newMolecules , newlinks  ])
-      
+      this.setState({ nodesToAdd: newMolecules });
+      this.setState({ linksToAdd: newlinks });
+
+
     }
-    // 4th envoyer tout ca dans la simulation !!
+  }
+
+  returnITPinfo = (itpstring: string) => {
+    const itp = ItpFile.readFromString(itpstring);
+    const atoms = itp.getField('atoms')
+    const links = itp.getField('bonds')
+    let good = true
+    // 1st generer une liste de noeuds
+
+    console.log("atoms", atoms.length)
+    console.log("links", links.length)
+    const newMolecules: SimulationNode[] = [];
+
+    // convert to node object et injecte dans la list
+    //Voila la forme du bordel
+    // 1 P5    1 POPE NH3  1  0.0
+    //Super pratique 
+    //Garder en memoire l'id d'avant sur l'itp 
+    let oldid = 0
+
+    let id = 0
+    for (let nodestr of atoms) {
+      const nodelist = nodestr.split(' ').filter((e) => { return e !== "" })
+      // 2nd check s'ils sont inside le forcefield 
+      if (!(this.state.dataForForm[this.currentForceField].includes(nodelist[3]))) {
+        this.setState({ Warningmessage: nodelist[3] + " not in " + this.currentForceField })
+        console.log(nodelist[3] + " not in " + this.currentForceField)
+        good = false
+        break
+      }
+      else if (nodelist[2] !== oldid.toString()) {
+        let mol = {
+          "resname": nodelist[3],
+          "seqid": 0,
+          "id": id.toString()
+        };
+
+        newMolecules.push(mol)
+        oldid = parseInt(nodelist[2])
+        id++
+      }
+    }
+
+    if (good) {
+
+      let newlinks = []
+      // 3rd faire la liste des liens
+      for (let linkstr of links) {
+        if (linkstr.startsWith(";")) continue
+        else if (linkstr.startsWith("#")) continue
+        else {
+          const link = linkstr.split(' ').filter((e) => { return e !== "" })
+
+          console.log("add this link ", link)
+          let idlink1 = parseInt(atoms[parseInt(link[0]) - 1].split(' ').filter((e) => { return e !== "" })[2])
+          let idlink2 = parseInt(atoms[parseInt(link[1]) - 1].split(' ').filter((e) => { return e !== "" })[2])
+
+          let node1 = newMolecules[idlink1 - 1]
+          let node2 = newMolecules[idlink2 - 1]
+
+          if (idlink1 !== idlink2) {
+            newlinks.push({
+              "source": newMolecules[idlink1 - 1],
+              "target": newMolecules[idlink2 - 1]
+            });
+
+            if (node1.links) node1.links.push(node2);
+            else node1.links = [node2];
+
+            if (node2.links) node2.links.push(node1);
+            else node2.links = [node1];
+
+          }
+        }
+      }
+
+      return [newMolecules, newlinks]
+
+
+    }
   }
 
   setForcefield = (ff: string): void => {
@@ -324,7 +399,7 @@ export default class GeneratorManager extends React.Component {
       this.setState({ Warningmessage: "Nodes id number " + id2 + " does not exist" });
       return
     }
- 
+
     let newlinks = [{
       "source": node1,
       "target": node2
@@ -363,29 +438,46 @@ export default class GeneratorManager extends React.Component {
       name: name
     }
 
-    const socket = io({ path: '/socket' })
-    socket.on("connect", () => {
-      console.log("connect")
-      socket.emit('runpolyply', data)
-    })
+    const socket = SocketIo.connect("http://localhost:4123");
+    socket.emit('runpolyply', data)
+
 
     socket.on("itp", (itp: string) => {
-
-      // Besoin de verifier que l'itp fourni par polyply est le meme polymere que celui afficher
-      console.log(itp)
       if (itp !== "") {
-        this.processITP(itp)
         this.setState({ submit: "ITP Done ! Go for gro ..." })
-      }
-    })
+        // Besoin de verifier que l'itp fourni par polyply est le meme polymere que celui afficher
+        const jsonpolymer = simulationToJson(this.state.Simulation!, this.currentForceField)
 
+        const klcdwu = this.returnITPinfo(itp)
+
+        const NBatomsITP: number = klcdwu![0].length
+        const NBlinksITP: number = klcdwu![1].length
+        const NBatomsSIM: number = jsonpolymer.nodes.length
+        const NBlinksSIM: number = jsonpolymer.links.length
+
+        console.log(NBatomsITP, NBlinksITP, NBatomsSIM, NBlinksSIM)
+        if (NBatomsSIM !== NBatomsITP) {
+          this.setState({ Warningmessage: "WHOUWHOUWHOU alert au node " })
+          this.setState({ loading: false })
+          this.setState({ submit: "" })
+
+        }
+        else if (NBlinksSIM !== NBlinksITP) {
+          this.setState({ Warningmessage: "WHOUWHOUWHOU alert au link " })
+          this.setState({ loading: false })
+          this.setState({ submit: "" })
+        }
+        else socket.emit("continue")
+        console.log("continue")
+      }
+
+    })
 
     socket.on("gro", (data: string) => {
       const blob = new Blob([data], { type: "text" });
       this.setState({ loading: false })
       this.setState({ submit: "" })
 
-      //then on envois le route n2 qui execute polyply gen coord
       const a = document.createElement("a");
       a.download = "out.gro";
       a.href = window.URL.createObjectURL(blob);
@@ -421,15 +513,14 @@ export default class GeneratorManager extends React.Component {
 
   componentDidMount() {
     this.getDataForcefield()
-      .then((value: any) => this.setState({ dataForForm: value }))
-      .catch(err => { console.log(err); this.setState({ dataForForm: {} }) });
+      .then((value: JSON) => this.setState({ dataForForm: value }))
+      .catch((err: any) => { console.log(err); this.setState({ dataForForm: {} }) });
   }
 
   // fetching the GET route from the Express server which matches the GET route from server.js
   getDataForcefield = async () => {
-    const response = await fetch('/api/databetter');
+    const response = await fetch('api/polymergenerator/data');
     const body = await response.json();
-    console.log("load data forcefield")
     if (response.status !== 200) {
       throw Error(body.message)
     }

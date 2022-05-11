@@ -165,7 +165,6 @@ export default class GeneratorViewer extends React.Component<propsviewer, statec
     //Send new simulation to Manager component
     this.props.getSimulation(this.simulation)
     reloadSimulation(svgContext, this.simulation, groups)
-
   }
 
   handleClose = () => {
